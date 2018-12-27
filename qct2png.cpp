@@ -4,7 +4,9 @@
  */
 
 #include <iostream>
+#include <vector>
 #include <assert.h>
+#include <fstream>
 
 static const char SCCSid[] = "@(#)qct.c         1.02 (C) 2010 arb Convert QCT map to PNG";
 
@@ -125,6 +127,60 @@ readInt(FILE *fp)
 	return(vv);
 }
 
+class KmzFile
+{
+public:
+    struct LayerData
+    {
+        float north_limit;	// limits of the zone
+        float south_limit;
+        float east_limit;
+        float west_limit;
+
+        float rotation ; 	// rotation angle of the zone
+    };
+
+    void writeToFile(const std::string& fname) const ;
+
+    std::vector<LayerData> layers ;
+};
+
+void KmzFile::writeToFile(const std::string& fname) const
+{
+    std::ofstream o(fname);
+
+    o << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>" << std::endl;
+    o << "<kml xmlns=\"http://www.opengis.net/kml/2.2\">" << std::endl;
+
+    o << "  <Folder>" << std::endl;
+    o << "    <name>Layer</name>" << std::endl;
+
+    for(uint32_t i=0;i<layers.size();++i)
+    {
+        char output[50] ;
+        sprintf(output,"%04d",i) ;
+
+    	o << "      <GroundOverlay>" << std::endl;
+        o << "        <name>Layer " << i+1 << "</name>" << std::endl;
+        o << "        <Icon>" << std::endl;
+        o << "          <href>files/image_data_" << output << ".jpg</href>" << std::endl;
+        o << "          <drawOrder>0<drawOrder>" << std::endl;
+        o << "        </Icon>" << std::endl;
+        o << "        <LatLonBox>" << std::endl;
+        o << "          <north>" << layers[i].north_limit << "</north>" << std::endl;
+        o << "          <south>" << layers[i].south_limit << "</south>" << std::endl;
+        o << "          <east>" << layers[i].east_limit << "</east>" << std::endl;
+        o << "          <west>" << layers[i].west_limit << "</west>" << std::endl;
+        o << "          <rotation>" << layers[i].rotation << "</rotation>" << std::endl;
+        o << "        </LatLonBox>" << std::endl;
+    	o << "      </GroundOverlay>" << std::endl;
+    }
+
+    o << "    <open>1</open>" << std::endl;
+    o << "  </Folder>" << std::endl;
+    o << "</kml>" << std::endl;
+    o.close();
+}
 
 double
 readDouble(FILE *fp)
@@ -223,6 +279,14 @@ public:
 	~QCT();
 
 	void message(const char *fmt, ...);
+
+    // compute latitude/longitude of a four corners
+
+	int computeLatLonLimits(double& lat_00, double& lon_00,
+                            double& lat_10, double& lon_10,
+                            double& lat_01, double& lon_01,
+                            double& lat_11, double& lon_11 );
+
 protected:
 	void debugmsg(const char *fmt, ...);
 	void throwError(const char *fmt, ...);
@@ -243,6 +307,7 @@ public:
 	bool writePNGFilename(const char *filename);
 	bool writeTIFFFile(FILE *);
 	bool writeTIFFFilename(const char *filename);
+	bool writeKMZFile();
 private:
 	int width, height;         // size in tiles (of 64x64 each)
 	int top_left_x,top_left_y,size_x,size_y;	// subparts of the tiles that will be output into an image
@@ -1172,6 +1237,18 @@ QCT::xy_to_latlon(int x, int y, double *latitude, double *longitude)
 	return(0);
 }
 
+int QCT::computeLatLonLimits(double& lat_00, double& lon_00,
+                            double& lat_10, double& lon_10,
+                            double& lat_01, double& lon_01,
+                            double& lat_11, double& lon_11 )
+{
+	xy_to_latlon( top_left_x          *QCT_TILE_SIZE  , top_left_y          *QCT_TILE_SIZE-1, &lat_00, &lon_00);
+	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE-1, top_left_y          *QCT_TILE_SIZE-1, &lat_10, &lon_10);
+	xy_to_latlon( top_left_x          *QCT_TILE_SIZE  ,(top_left_y + size_y)*QCT_TILE_SIZE-1, &lat_01, &lon_01);
+	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE-1,(top_left_y + size_y)*QCT_TILE_SIZE-1, &lat_11, &lon_11);
+
+    return true;
+}
 
 /* -------------------------------------------------------------------------
  * Test program.
@@ -1180,15 +1257,16 @@ int
 main(int argc, char *argv[])
 {
 	char *prog;
-	const char *options = "dVqu:v:x:y:i:o:";
-	const char *usage = "usage: %s [-d] [-v] [-q] [-x SIZE] [-y SIZE] -i map.qct [-o map.png]\n"
+	const char *options = "dVqu:v:x:y:i:o:k:";
+	const char *usage = "usage: %s [-d] [-v] [-q] [-x SIZE] [-y SIZE] -i map.qct [-o map.png] [-k map.kmz]\n"
 		"-d\tdebug\n"
 		"-V\tverbose\n"
 		"-q\tquery metadata only, no image extracted\n"
 		"-u,v\tcoordinate of top left tile to start from (default: 0,0)\n"
 		"-x,y\tmaximum size of the output in tiles (0 means unlimited)\n"
 		"-i\tinput filename (qct format)\n"
-		"-o\toutput filename (png format)\n";
+		"-o\toutput filename (png format)\n"
+		"-k\toutput filename (kmz format)\n";
 	int debug = 0;
 	int verbose = 0;
 	int query = 0;
@@ -1196,6 +1274,7 @@ main(int argc, char *argv[])
 	int size_tile_x=0,size_tile_y=0;
 	char *inputfile = NULL;
 	char *outputfile = NULL;
+    char *outputKMZfile = NULL;
 	int c;
 
 	prog = argv[0];
@@ -1206,6 +1285,7 @@ main(int argc, char *argv[])
 		case 'q': query++; break;
 		case 'i': inputfile = optarg; break;
 		case 'o': outputfile = optarg; break;
+		case 'k': outputKMZfile = optarg; break;
 		case 'u': sscanf(optarg,"%d",&top_left_tile_x) ; break ;
 		case 'v': sscanf(optarg,"%d",&top_left_tile_y) ; break ;
 		case 'x': sscanf(optarg,"%d",&size_tile_x) ; break ;
@@ -1251,6 +1331,70 @@ main(int argc, char *argv[])
 		qct.writePPMFilename(outputfile);
 #endif
 	}
+
+	if (outputKMZfile)
+    {
+        KmzFile kmz ;
+
+		double lat_00, lon_00;
+		double lat_10, lon_10;
+		double lat_01, lon_01;
+		double lat_11, lon_11;
+
+		qct.computeLatLonLimits(
+		            lat_00, lon_00,
+		        	lat_10, lon_10,
+		            lat_01, lon_01,
+		            lat_11, lon_11
+                    );
+
+        std::cerr << "got corners:" << std::endl;
+        std::cerr << "  " << lat_00 << " " << lon_00 << std::endl;
+        std::cerr << "  " << lat_10 << " " << lon_10 << std::endl;
+        std::cerr << "  " << lat_01 << " " << lon_01 << std::endl;
+        std::cerr << "  " << lat_11 << " " << lon_11 << std::endl;
+
+        // compute rotation of the overlay
+
+        float center_lat = 0.25*(lat_00+lat_01+lat_10+lat_11) ;
+        float center_lon = 0.25*(lon_00+lon_01+lon_10+lon_11) ;
+
+        float angle = atan2( 0.5*(lat_11+lat_10) - center_lat, 0.5*(lon_11+lon_10) - center_lon);
+
+        // we make a rotation of -angle
+
+        float cos_angle = cos(-angle);
+        float sin_angle = sin(-angle);
+
+        float new_lat_00 = center_lat + cos_angle * (lon_00 - center_lon) - sin_angle * (lat_00 - center_lat) ;
+        float new_lon_00 = center_lon + sin_angle * (lon_00 - center_lon) + cos_angle * (lat_00 - center_lat) ;
+
+        float new_lat_01 = center_lat + cos_angle * (lon_01 - center_lon) - sin_angle * (lat_01 - center_lat) ;
+        float new_lon_01 = center_lon + sin_angle * (lon_01 - center_lon) + cos_angle * (lat_01 - center_lat) ;
+
+        float new_lat_10 = center_lat + cos_angle * (lon_10 - center_lon) - sin_angle * (lat_10 - center_lat) ;
+        float new_lon_10 = center_lon + sin_angle * (lon_10 - center_lon) + cos_angle * (lat_10 - center_lat) ;
+
+        float new_lat_11 = center_lat + cos_angle * (lon_11 - center_lon) - sin_angle * (lat_11 - center_lat) ;
+        float new_lon_11 = center_lon + sin_angle * (lon_11 - center_lon) + cos_angle * (lat_11 - center_lat) ;
+
+        std::cerr << "Angle: " << 180 /M_PI * angle << " deg." << std::endl;
+
+        std::cerr << "After rotation: " << new_lat_00 << " " << new_lon_00 << std::endl;
+        std::cerr << "After rotation: " << new_lat_01 << " " << new_lon_01 << std::endl;
+        std::cerr << "After rotation: " << new_lat_11 << " " << new_lon_11 << std::endl;
+        std::cerr << "After rotation: " << new_lat_10 << " " << new_lon_10 << std::endl;
+
+        KmzFile::LayerData ld ;
+        ld.rotation = 180/M_PI*angle ;
+        ld.north_limit = 0.5*(new_lat_10+new_lat_11) ;
+        ld.south_limit = 0.5*(new_lat_00+new_lat_01) ;
+        ld.east_limit  = 0.5*(new_lon_00+new_lon_10) ;
+        ld.west_limit  = 0.5*(new_lon_01+new_lon_11) ;
+
+        kmz.layers.push_back(ld);
+        kmz.writeToFile(outputKMZfile);
+    }
 
 	return(0);
 }
