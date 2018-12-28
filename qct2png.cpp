@@ -1225,10 +1225,30 @@ QCT::xy_to_latlon(int x, int y, double *latitude, double *longitude)
 	y3 = y2 * y;
 	xy = x * y;
 
-	*longitude = lon + lonX * x + lonY * y + lonXX * x2 + lonXY * x * y +
-		lonYY * y2 + lonXXX * x3 + lonXXY * x2 * y + lonXYY * x * y2 + lonYYY * y3;
-	*latitude = lat + latX * x + latY * y + latXX * x2 + latXY * x * y +
-		latYY * y2 + latXXX * x3 + latXXY * x2 * y + latXYY * x * y2 + latYYY * y3;
+	// Python:
+	// coeffs in order are: c, cy, cx, cy2, cxy, cx2, cy3, cy2x, cyx2, cx3
+	// There are coefficients for x and for y
+	// each coordinate is calculated as
+	// c + cy*y + cx*x + cy2*y^2 + cxy*x*y + cx2*x^2 + cy3*y^3 + cy2x*(y^2)*x + cyx2*y*x^2 + cx3*x^3
+	// c0 + c1*y + c2*x + c3*y^2 + c4*x*y + c5*x^2 + c6*y^3 + c7*(y^2)*x + c8*y*x^2 + c9*x^3
+
+	// Touratech:
+	// Substitute into a and b as follows:
+	// 	x and y to latitude or longitude: x and y
+	// 	lat and lon to x or y: lat and lon
+
+	// x = c0 + c1*x + c2*y + c3*x2 + c4*x*y + c5*y2 + c6*x3 + c7*x2*y + c8*x*y2 + c9*y3
+	// y = c0 + c1*x + c2*y + c3*x2 + c4*x*y + c5*y2 + c6*x3 + c7*x2*y + c8*x*y2 + c9*y3
+	// lat = c0 + c1*x + c2*y + c3*x2 + c4*x*y + c5*y2 + c6*x3 + c7*x2*y + c8*x*y2 + c9*y3
+	// lon = c0 + c1*x + c2*y + c3*x2 + c4*x*y + c5*y2 + c6*x3 + c7*x2*y + c8*x*y2 + c9*y3
+
+	// New equations (1.01) :
+	// eas, easY, easX, easYY, easXY, easXX, easYYY, easYYX, easYXX, easXXX;
+	// nor, norY, norX, norYY, norXY, norXX, norYYY, norYYX, norYXX, norXXX;
+	// lat, latX, latY, latXX, latXY, latYY, latXXX, latXXY, latXYY, latYYY;
+	// lon, lonX, lonY, lonXX, lonXY, lonYY, lonXXX, lonXXY, lonXYY, lonYYY;
+	*longitude = lon + lonX * x + lonY * y + lonXX * x2 + lonXY * x * y + lonYY * y2 + lonXXX * x3 + lonXXY * x2 * y + lonXYY * x * y2 + lonYYY * y3;
+	*latitude  = lat + latX * x + latY * y + latXX * x2 + latXY * x * y + latYY * y2 + latXXX * x3 + latXXY * x2 * y + latXYY * x * y2 + latYYY * y3;
 
 	// Add the datum shift
 	*longitude += datum_shift_east;
@@ -1242,10 +1262,10 @@ int QCT::computeLatLonLimits(double& lat_00, double& lon_00,
                             double& lat_01, double& lon_01,
                             double& lat_11, double& lon_11 )
 {
-	xy_to_latlon( top_left_x          *QCT_TILE_SIZE  , top_left_y          *QCT_TILE_SIZE-1, &lat_00, &lon_00);
-	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE-1, top_left_y          *QCT_TILE_SIZE-1, &lat_10, &lon_10);
-	xy_to_latlon( top_left_x          *QCT_TILE_SIZE  ,(top_left_y + size_y)*QCT_TILE_SIZE-1, &lat_01, &lon_01);
-	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE-1,(top_left_y + size_y)*QCT_TILE_SIZE-1, &lat_11, &lon_11);
+	xy_to_latlon( top_left_x          *QCT_TILE_SIZE, top_left_y          *QCT_TILE_SIZE, &lat_01, &lon_01);
+	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE, top_left_y          *QCT_TILE_SIZE, &lat_11, &lon_11);
+	xy_to_latlon( top_left_x          *QCT_TILE_SIZE,(top_left_y + size_y)*QCT_TILE_SIZE, &lat_00, &lon_00);
+	xy_to_latlon((top_left_x + size_x)*QCT_TILE_SIZE,(top_left_y + size_y)*QCT_TILE_SIZE, &lat_10, &lon_10);
 
     return true;
 }
@@ -1351,14 +1371,24 @@ main(int argc, char *argv[])
         std::cerr << "got corners:" << std::endl;
         std::cerr << "  " << lat_00 << " " << lon_00 << std::endl;
         std::cerr << "  " << lat_10 << " " << lon_10 << std::endl;
-        std::cerr << "  " << lat_01 << " " << lon_01 << std::endl;
         std::cerr << "  " << lat_11 << " " << lon_11 << std::endl;
+        std::cerr << "  " << lat_01 << " " << lon_01 << std::endl;
+
+        // compute width and height for testing
+
+        float x1 = 0.5*(lat_11+lat_10) - 0.5*(lat_01+lat_00);
+        float y1 = 0.5*(lon_11+lon_10) - 0.5*(lon_01+lon_00);
+        float x2 =-0.5*(lat_00+lat_10) + 0.5*(lat_01+lat_11);
+        float y2 =-0.5*(lon_00+lon_10) + 0.5*(lon_01+lon_11);
 
         // compute rotation of the overlay
 
         float center_lat = 0.25*(lat_00+lat_01+lat_10+lat_11) ;
         float center_lon = 0.25*(lon_00+lon_01+lon_10+lon_11) ;
 
+        std::cerr << "width: " << sqrtf(x1*x1+y1*y1) * cos(center_lat*M_PI/180) << ", height: " << sqrtf(x2*x2+y2*y2) << std::endl;
+
+#ifdef DO_ROTATION
         float angle = atan2( 0.5*(lat_11+lat_10) - center_lat, 0.5*(lon_11+lon_10) - center_lon);
 
         // we make a rotation of -angle
@@ -1366,34 +1396,44 @@ main(int argc, char *argv[])
         float cos_angle = cos(-angle);
         float sin_angle = sin(-angle);
 
-        float new_lat_00 = center_lat + cos_angle * (lon_00 - center_lon) - sin_angle * (lat_00 - center_lat) ;
-        float new_lon_00 = center_lon + sin_angle * (lon_00 - center_lon) + cos_angle * (lat_00 - center_lat) ;
+        float new_lon_00 = center_lon + cos_angle * (lon_00 - center_lon) - sin_angle * (lat_00 - center_lat) ;
+        float new_lat_00 = center_lat + sin_angle * (lon_00 - center_lon) + cos_angle * (lat_00 - center_lat) ;
 
-        float new_lat_01 = center_lat + cos_angle * (lon_01 - center_lon) - sin_angle * (lat_01 - center_lat) ;
-        float new_lon_01 = center_lon + sin_angle * (lon_01 - center_lon) + cos_angle * (lat_01 - center_lat) ;
+        float new_lon_10 = center_lon + cos_angle * (lon_10 - center_lon) - sin_angle * (lat_10 - center_lat) ;
+        float new_lat_10 = center_lat + sin_angle * (lon_10 - center_lon) + cos_angle * (lat_10 - center_lat) ;
 
-        float new_lat_10 = center_lat + cos_angle * (lon_10 - center_lon) - sin_angle * (lat_10 - center_lat) ;
-        float new_lon_10 = center_lon + sin_angle * (lon_10 - center_lon) + cos_angle * (lat_10 - center_lat) ;
+        float new_lon_11 = center_lon + cos_angle * (lon_11 - center_lon) - sin_angle * (lat_11 - center_lat) ;
+        float new_lat_11 = center_lat + sin_angle * (lon_11 - center_lon) + cos_angle * (lat_11 - center_lat) ;
 
-        float new_lat_11 = center_lat + cos_angle * (lon_11 - center_lon) - sin_angle * (lat_11 - center_lat) ;
-        float new_lon_11 = center_lon + sin_angle * (lon_11 - center_lon) + cos_angle * (lat_11 - center_lat) ;
+        float new_lon_01 = center_lon + cos_angle * (lon_01 - center_lon) - sin_angle * (lat_01 - center_lat) ;
+        float new_lat_01 = center_lat + sin_angle * (lon_01 - center_lon) + cos_angle * (lat_01 - center_lat) ;
 
         std::cerr << "Angle: " << 180 /M_PI * angle << " deg." << std::endl;
 
         std::cerr << "After rotation: " << new_lat_00 << " " << new_lon_00 << std::endl;
-        std::cerr << "After rotation: " << new_lat_01 << " " << new_lon_01 << std::endl;
-        std::cerr << "After rotation: " << new_lat_11 << " " << new_lon_11 << std::endl;
         std::cerr << "After rotation: " << new_lat_10 << " " << new_lon_10 << std::endl;
+        std::cerr << "After rotation: " << new_lat_11 << " " << new_lon_11 << std::endl;
+        std::cerr << "After rotation: " << new_lat_01 << " " << new_lon_01 << std::endl;
 
         KmzFile::LayerData ld ;
-        ld.rotation = 180/M_PI*angle ;
-        ld.north_limit = 0.5*(new_lat_10+new_lat_11) ;
-        ld.south_limit = 0.5*(new_lat_00+new_lat_01) ;
-        ld.east_limit  = 0.5*(new_lon_00+new_lon_10) ;
-        ld.west_limit  = 0.5*(new_lon_01+new_lon_11) ;
+        ld.rotation = -180/M_PI*angle ;					// angles are counter clockwise, so we flip sign here
+        ld.north_limit = 0.5*(new_lat_01+new_lat_11) ;
+        ld.south_limit = 0.5*(new_lat_00+new_lat_10) ;
+        ld.east_limit  = 0.5*(new_lon_10+new_lon_11) ;
+        ld.west_limit  = 0.5*(new_lon_00+new_lon_01) ;
+#else
+        KmzFile::LayerData ld ;
+        ld.rotation = 0.0;
+        ld.north_limit = 0.5*(lat_01+lat_11) ;
+        ld.south_limit = 0.5*(lat_00+lat_10) ;
+        ld.east_limit  = 0.5*(lon_10+lon_11) ;
+        ld.west_limit  = 0.5*(lon_00+lon_01) ;
+#endif
 
+        std::cerr << "north-south in km: " << (ld.north_limit - ld.south_limit)*M_PI/180*6378 << std::endl;
+        std::cerr << "east-west   in km: " << (ld.east_limit  - ld.west_limit )*M_PI/180*6378 * cos(center_lat*M_PI/180) << std::endl;
         kmz.layers.push_back(ld);
-        kmz.writeToFile(outputKMZfile);
+        kmz.writeToFile("doc.kml");
     }
 
 	return(0);
