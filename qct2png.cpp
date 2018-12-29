@@ -127,6 +127,9 @@ readInt(FILE *fp)
 	return(vv);
 }
 
+static bool writePNGFile(FILE *, const unsigned char *data, const int *palette, int W, int H);
+static bool writePNGFilename(const char *filename, const unsigned char *data, const int *palette, int W, int H);
+
 class KmzFile
 {
 public:
@@ -287,27 +290,24 @@ public:
                             double& lat_01, double& lon_01,
                             double& lat_11, double& lon_11 );
 
-protected:
 	void debugmsg(const char *fmt, ...);
+protected:
 	void throwError(const char *fmt, ...);
-	void readTile(FILE *, int tile_x, int tile_y);
+	void readTile(FILE *, int tile_x, int tile_y,unsigned char *data);
 	int xy_to_latlon(int pixel_x, int pixel_y, double *lat, double *lon);
 public:
 	void setDebug(int d)     { debug = d; }
 	void setVerbose(int v)   { verbose = v; }
 	void setBounds(int _top_left_x,int _top_left_y,int _size_x,int _size_y)   { top_left_x=_top_left_x; top_left_y=_top_left_y;size_x=_size_x;size_y=_size_y; }
-	bool readFile(FILE *, int headeronly);
-	bool readFilename(const char *filename, int headeronly);
+	bool readFile(FILE *, int headeronly, unsigned char *data);
+	bool readFilename(const char *filename, int headeronly, unsigned char *image_data);
 	void printMetadata(FILE *fp);
-	bool writePPMFile(FILE *);
-	bool writePPMFilename(const char *filename);
-	bool writeGIFFile(FILE *);
-	bool writeGIFFilename(const char *filename);
-	bool writePNGFile(FILE *);
-	bool writePNGFilename(const char *filename);
-	bool writeTIFFFile(FILE *);
-	bool writeTIFFFilename(const char *filename);
+	//bool writePPMFile(FILE *);
+	//bool writePPMFilename(const char *filename);
 	bool writeKMZFile();
+
+    const int *getPalette() const { return palette ; }
+
 private:
 	int width, height;         // size in tiles (of 64x64 each)
 	int top_left_x,top_left_y,size_x,size_y;	// subparts of the tiles that will be output into an image
@@ -442,7 +442,7 @@ QCT::debugmsg(const char *fmt, ...)
 /* -------------------------------------------------------------------------
  */
 void
-QCT::readTile(FILE *fp, int tile_xx, int tile_yy)
+QCT::readTile(FILE *fp, int tile_xx, int tile_yy,unsigned char *data)
 {
 	unsigned char tile_data[QCT_TILE_PIXELS];
 	unsigned char *row_ptr[QCT_TILE_SIZE];
@@ -469,17 +469,17 @@ QCT::readTile(FILE *fp, int tile_xx, int tile_yy)
 
 	memset(tile_data, 0, QCT_TILE_PIXELS);
 
-	// Size for one whole row in image_data
+	// Size for one whole row in data
 	bytes_per_row = size_x * QCT_TILE_SIZE;
 
 	assert(tile_xx >= top_left_x) ;
 	assert(tile_yy >= top_left_y) ;
 
-	// Calculate pointer into image_data for each row in this tile
+	// Calculate pointer into data for each row in this tile
 	for (row=0; row<QCT_TILE_SIZE; row++)
 	{
 		// Top left corner of tile within image
-		row_ptr[row] = image_data + ( (tile_yy-top_left_y) * QCT_TILE_SIZE * bytes_per_row) + ((tile_xx-top_left_x) * QCT_TILE_SIZE);
+		row_ptr[row] = data + ( (tile_yy-top_left_y) * QCT_TILE_SIZE * bytes_per_row) + ((tile_xx-top_left_x) * QCT_TILE_SIZE);
 		// Interleaved rows in the above sequence
 		row_ptr[row] += row_seq[row] * bytes_per_row;
 	}
@@ -676,7 +676,7 @@ QCT::readTile(FILE *fp, int tile_xx, int tile_yy)
 
 
 bool
-QCT::readFile(FILE *fp, int headeronly)
+QCT::readFile(FILE *fp, int headeronly,unsigned char *data)
 {
 	int ii;
 
@@ -819,14 +819,12 @@ QCT::readFile(FILE *fp, int headeronly)
 	if(size_x == 0) size_x = width ;
 	if(size_y == 0) size_y = height ;
 
-	// Image index (width * height pointers)
-	image_data = (unsigned char*)calloc(size_y*QCT_TILE_SIZE, size_x*QCT_TILE_SIZE);
 
 	{
 		int xx, yy;
 		for (yy=0; yy<height; yy++)
 		{
-			message("  handling tiles (*,%d/%d)",yy,height) ;
+			debugmsg("  handling tiles (*,%d/%d)",yy,height) ;
 
 			for (xx=0; xx<width; xx++)
 			{
@@ -838,7 +836,7 @@ QCT::readFile(FILE *fp, int headeronly)
 				{
 					FSEEKO(fp, tile_offset, SEEK_SET);
 					//debugmsg("Would read tile %d, %d packing %d at offset %x", xx, yy, fgetc(fp), tile_offset);
-					readTile(fp, xx, yy);
+					readTile(fp, xx, yy,data);
 
 					FSEEKO(fp, current_offset, SEEK_SET);
 				}
@@ -851,7 +849,7 @@ QCT::readFile(FILE *fp, int headeronly)
 
 
 bool
-QCT::readFilename(const char *filename, int headeronly)
+QCT::readFilename(const char *filename, int headeronly,unsigned char *data)
 {
 	FILE *fp;
 	bool truth;
@@ -862,7 +860,7 @@ QCT::readFilename(const char *filename, int headeronly)
 		throwError("cannot open %s (%s)", filename, strerror(errno));
 		return false;
 	}
-	truth = readFile(fp, headeronly);
+	truth = readFile(fp, headeronly,data);
 	fclose(fp);
 	return(truth);
 }
@@ -970,6 +968,7 @@ QCT::printMetadata(FILE *fp)
 
 /* -------------------------------------------------------------------------
  */
+#ifdef TO_REMOVE
 bool
 QCT::writePPMFile(FILE *fp)
 {
@@ -1081,90 +1080,6 @@ QCT::writeGIFFilename(const char *filename)
 	return(truth);
 }
 
-
-/* -------------------------------------------------------------------------
- */
-bool
-QCT::writePNGFile(FILE *fp)
-{
-#ifdef USE_PNG
-	int ii;
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
-	if (!png_ptr)
-		return(false);
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	if (!info_ptr)
-	{
-		png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
-		return (false);
-	}
-
-	// Any errors inside png_ functions will return here
-	if (setjmp(png_jmpbuf(png_ptr)))
-	{
-		throwError("PNG file write error\n");
-		return false;
-	}
-
-	png_init_io(png_ptr, fp);
-
-	int bit_depth = 8;
-	png_set_IHDR(png_ptr, info_ptr, size_x*QCT_TILE_SIZE, size_y*QCT_TILE_SIZE,
-		bit_depth, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
-		PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-
-	int num_palette = 256;
-	png_color pal[num_palette];
-	for (ii=0; ii<256; ii++)
-	{
-		pal[ii].red   = PAL_RED(palette[ii]);
-		pal[ii].green = PAL_GREEN(palette[ii]);
-		pal[ii].blue  = PAL_BLUE(palette[ii]);
-	}
-	png_set_PLTE(png_ptr, info_ptr, pal, num_palette);
-
-	png_byte *row_pointers[size_y*QCT_TILE_SIZE];
-	for (ii=0; ii<size_y*QCT_TILE_SIZE; ii++)
-		row_pointers[ii]=image_data + size_x*QCT_TILE_SIZE*ii;
-	png_set_rows(png_ptr, info_ptr, row_pointers);
-
-	png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
-
-	png_write_end(png_ptr, info_ptr);
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-
-	return true;
-#else
-	throwError("cannot write file (PNG not supported)");
-	return false;
-#endif
-}
-
-
-bool
-QCT::writePNGFilename(const char *filename)
-{
-	FILE *fp;
-	bool truth;
-
-	fp = fopen(filename, "wb");
-	if (fp == NULL)
-	{
-		throwError("cannot open %s (%s)", filename, strerror(errno));
-		return false;
-	}
-	truth = writePNGFile(fp);
-	if (fclose(fp))
-	{
-		throwError("cannot write %s (%s)", filename, strerror(errno));
-		truth = false;
-	}
-	return(truth);
-}
-
-
 /* -------------------------------------------------------------------------
  */
 bool
@@ -1198,6 +1113,86 @@ QCT::writeTIFFFilename(const char *filename)
 		throwError("cannot write %s (%s)", filename, strerror(errno));
 		truth = false;
 	}
+	return(truth);
+}
+
+
+#endif
+
+/* -------------------------------------------------------------------------
+ */
+static bool writePNGFile(FILE *fp, const unsigned char *data, const int *palette, int W, int H)
+{
+#ifdef USE_PNG
+	int ii;
+
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
+	if (!png_ptr)
+		return(false);
+
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr)
+	{
+		png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
+		return (false);
+	}
+
+	// Any errors inside png_ functions will return here
+	if (setjmp(png_jmpbuf(png_ptr)))
+	{
+		throw std::runtime_error("PNG file write error");
+		return false;
+	}
+
+	png_init_io(png_ptr, fp);
+
+	int bit_depth = 8;
+	png_set_IHDR(png_ptr, info_ptr, W,H, bit_depth, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+
+	int num_palette = 256;
+	png_color pal[num_palette];
+	for (ii=0; ii<256; ii++)
+	{
+		pal[ii].red   = PAL_RED(palette[ii]);
+		pal[ii].green = PAL_GREEN(palette[ii]);
+		pal[ii].blue  = PAL_BLUE(palette[ii]);
+	}
+	png_set_PLTE(png_ptr, info_ptr, pal, num_palette);
+
+	png_byte *row_pointers[H];
+
+	for (ii=0; ii<H; ii++)
+		row_pointers[ii]=static_cast<png_byte*>(const_cast<unsigned char *>(data + W*ii));
+
+	png_set_rows(png_ptr, info_ptr, row_pointers);
+
+	png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
+
+	png_write_end(png_ptr, info_ptr);
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+
+	return true;
+#else
+	throwError("cannot write file (PNG not supported)");
+	return false;
+#endif
+}
+
+
+static bool writePNGFilename(const char *filename, const unsigned char *data, const int *palette, int W, int H)
+{
+	FILE *fp;
+	bool truth;
+
+	fp = fopen(filename, "wb");
+	if (fp == NULL)
+		throw std::runtime_error(std::string("cannot open ") + filename + " for writing.");
+
+	truth = writePNGFile(fp,data,palette,W,H);
+
+	if (fclose(fp))
+		throw std::runtime_error(std::string("cannot write to file ") + filename + " (out of space?)");
+
 	return(truth);
 }
 
@@ -1277,7 +1272,7 @@ int
 main(int argc, char *argv[])
 {
 	char *prog;
-	const char *options = "dVqu:v:x:y:i:o:k:";
+	const char *options = "dVqu:v:x:y:i:o:k:b:";
 	const char *usage = "usage: %s [-d] [-v] [-q] [-x SIZE] [-y SIZE] -i map.qct [-o map.png] [-k map.kmz]\n"
 		"-d\tdebug\n"
 		"-V\tverbose\n"
@@ -1292,6 +1287,7 @@ main(int argc, char *argv[])
 	int query = 0;
 	int top_left_tile_x=0,top_left_tile_y=0;
 	int size_tile_x=0,size_tile_y=0;
+    int block_size=0;
 	char *inputfile = NULL;
 	char *outputfile = NULL;
     char *outputKMZfile = NULL;
@@ -1310,6 +1306,7 @@ main(int argc, char *argv[])
 		case 'v': sscanf(optarg,"%d",&top_left_tile_y) ; break ;
 		case 'x': sscanf(optarg,"%d",&size_tile_x) ; break ;
 		case 'y': sscanf(optarg,"%d",&size_tile_y) ; break ;
+		case 'b': sscanf(optarg,"%d",&block_size) ; break ;
 		default: fprintf(stderr, usage, prog); exit(1);
 	}
 
@@ -1331,108 +1328,142 @@ main(int argc, char *argv[])
 	qct.setVerbose(verbose);
 	qct.setBounds(top_left_tile_x,top_left_tile_y,size_tile_x,size_tile_y);
 
+    // read header so as to init tile size etc.
+
+	qct.readFilename(inputfile,true,NULL) ;
+
+    if(query)
+        return 1;
+
 	if(outputfile)
 		qct.message("Reading tiles (%d, %d) + %dx%d into image \"%s\"\n", top_left_tile_x,top_left_tile_y, size_tile_x,size_tile_y,outputfile);
 
-	if(!qct.readFilename(inputfile, query))
-		return 0;
+	// Image index (width * height pointers)
+    // Allocate image data once for all
+
+	unsigned char *image_data = (unsigned char*)calloc(size_tile_y*QCT_TILE_SIZE, size_tile_x*QCT_TILE_SIZE);
 
 	if (query)
 	{
 		qct.printMetadata(stdout);
 	}
 	else if (outputfile)
-	{
-#ifdef USE_PNG
-		qct.writePNGFilename(outputfile);
-#elif defined USE_GIFLIB
-		qct.writeGIFFilename(outputfile);
-#else
-		qct.writePPMFilename(outputfile);
-#endif
-	}
+		writePNGFilename(outputfile,image_data,qct.getPalette(),size_tile_x*QCT_TILE_SIZE,size_tile_y*QCT_TILE_SIZE);
 
 	if (outputKMZfile)
     {
         KmzFile kmz ;
 
-		double lat_00, lon_00;
-		double lat_10, lon_10;
-		double lat_01, lon_01;
-		double lat_11, lon_11;
+        uint32_t block_index = 0 ;
 
-		qct.computeLatLonLimits(
-		            lat_00, lon_00,
-		        	lat_10, lon_10,
-		            lat_01, lon_01,
-		            lat_11, lon_11
-                    );
+        const int block_size_x = (block_size>0)?block_size:size_tile_x ;
+        const int block_size_y = (block_size>0)?block_size:size_tile_y ;
 
-        std::cerr << "got corners:" << std::endl;
-        std::cerr << "  " << lat_00 << " " << lon_00 << std::endl;
-        std::cerr << "  " << lat_10 << " " << lon_10 << std::endl;
-        std::cerr << "  " << lat_11 << " " << lon_11 << std::endl;
-        std::cerr << "  " << lat_01 << " " << lon_01 << std::endl;
+        int n_maps_i = (size_tile_x + block_size_x - 1)/block_size_x ;
+        int n_maps_j = (size_tile_y + block_size_y - 1)/block_size_y ;
 
-        // compute width and height for testing
+		for(uint32_t j=0;j<n_maps_j;++j)
+			for(uint32_t i=0;i<n_maps_i;++i)
+			{
+				double lat_00, lon_00;
+				double lat_10, lon_10;
+				double lat_01, lon_01;
+				double lat_11, lon_11;
 
-        float x1 = 0.5*(lat_11+lat_10) - 0.5*(lat_01+lat_00);
-        float y1 = 0.5*(lon_11+lon_10) - 0.5*(lon_01+lon_00);
-        float x2 =-0.5*(lat_00+lat_10) + 0.5*(lat_01+lat_11);
-        float y2 =-0.5*(lon_00+lon_10) + 0.5*(lon_01+lon_11);
+				qct.setBounds(top_left_tile_x + block_size_x*i,top_left_tile_y + block_size_y*j,block_size_x,block_size_y);
 
-        // compute rotation of the overlay
-
-        float center_lat = 0.25*(lat_00+lat_01+lat_10+lat_11) ;
-        float center_lon = 0.25*(lon_00+lon_01+lon_10+lon_11) ;
-
-        std::cerr << "width: " << sqrtf(x1*x1+y1*y1) * cos(center_lat*M_PI/180) << ", height: " << sqrtf(x2*x2+y2*y2) << std::endl;
-
-#ifdef DO_ROTATION
-        float angle = atan2( 0.5*(lat_11+lat_10) - center_lat, 0.5*(lon_11+lon_10) - center_lon);
-
-        // we make a rotation of -angle
-
-        float cos_angle = cos(-angle);
-        float sin_angle = sin(-angle);
-
-        float new_lon_00 = center_lon + cos_angle * (lon_00 - center_lon) - sin_angle * (lat_00 - center_lat) ;
-        float new_lat_00 = center_lat + sin_angle * (lon_00 - center_lon) + cos_angle * (lat_00 - center_lat) ;
-
-        float new_lon_10 = center_lon + cos_angle * (lon_10 - center_lon) - sin_angle * (lat_10 - center_lat) ;
-        float new_lat_10 = center_lat + sin_angle * (lon_10 - center_lon) + cos_angle * (lat_10 - center_lat) ;
-
-        float new_lon_11 = center_lon + cos_angle * (lon_11 - center_lon) - sin_angle * (lat_11 - center_lat) ;
-        float new_lat_11 = center_lat + sin_angle * (lon_11 - center_lon) + cos_angle * (lat_11 - center_lat) ;
-
-        float new_lon_01 = center_lon + cos_angle * (lon_01 - center_lon) - sin_angle * (lat_01 - center_lat) ;
-        float new_lat_01 = center_lat + sin_angle * (lon_01 - center_lon) + cos_angle * (lat_01 - center_lat) ;
-
-        std::cerr << "Angle: " << 180 /M_PI * angle << " deg." << std::endl;
-
-        std::cerr << "After rotation: " << new_lat_00 << " " << new_lon_00 << std::endl;
-        std::cerr << "After rotation: " << new_lat_10 << " " << new_lon_10 << std::endl;
-        std::cerr << "After rotation: " << new_lat_11 << " " << new_lon_11 << std::endl;
-        std::cerr << "After rotation: " << new_lat_01 << " " << new_lon_01 << std::endl;
-
-        KmzFile::LayerData ld ;
-        ld.rotation = -180/M_PI*angle ;					// angles are counter clockwise, so we flip sign here
-        ld.north_limit = 0.5*(new_lat_01+new_lat_11) ;
-        ld.south_limit = 0.5*(new_lat_00+new_lat_10) ;
-        ld.east_limit  = 0.5*(new_lon_10+new_lon_11) ;
-        ld.west_limit  = 0.5*(new_lon_00+new_lon_01) ;
-#else
-        KmzFile::LayerData ld ;
-        ld.rotation = 0.0;
-        ld.north_limit = 0.5*(lat_01+lat_11) ;
-        ld.south_limit = 0.5*(lat_00+lat_10) ;
-        ld.east_limit  = 0.5*(lon_10+lon_11) ;
-        ld.west_limit  = 0.5*(lon_00+lon_01) ;
+				qct.computeLatLonLimits(
+				            lat_00, lon_00,
+				            lat_10, lon_10,
+				            lat_01, lon_01,
+				            lat_11, lon_11
+				            );
+#ifdef DEBUG
+				std::cerr << "BLock " << block_index << ": got corners:" << std::endl;
+				std::cerr << "  " << lat_00 << " " << lon_00 << std::endl;
+				std::cerr << "  " << lat_10 << " " << lon_10 << std::endl;
+				std::cerr << "  " << lat_11 << " " << lon_11 << std::endl;
+				std::cerr << "  " << lat_01 << " " << lon_01 << std::endl;
 #endif
 
-        std::cerr << "north-south in km: " << (ld.north_limit - ld.south_limit)*M_PI/180*6378 << std::endl;
-        std::cerr << "east-west   in km: " << (ld.east_limit  - ld.west_limit )*M_PI/180*6378 * cos(center_lat*M_PI/180) << std::endl;
-        kmz.layers.push_back(ld);
+				// compute width and height for testing
+
+				float x1 = 0.5*(lat_11+lat_10) - 0.5*(lat_01+lat_00);
+				float y1 = 0.5*(lon_11+lon_10) - 0.5*(lon_01+lon_00);
+				float x2 =-0.5*(lat_00+lat_10) + 0.5*(lat_01+lat_11);
+				float y2 =-0.5*(lon_00+lon_10) + 0.5*(lon_01+lon_11);
+
+				// compute rotation of the overlay
+
+				float center_lat = 0.25*(lat_00+lat_01+lat_10+lat_11) ;
+				float center_lon = 0.25*(lon_00+lon_01+lon_10+lon_11) ;
+
+				qct.debugmsg("width: %f, height: %f\n",sqrtf(x1*x1+y1*y1) * cos(center_lat*M_PI/180), sqrtf(x2*x2+y2*y2));
+
+#ifdef DO_ROTATION
+				float angle = atan2( 0.5*(lat_11+lat_10) - center_lat, 0.5*(lon_11+lon_10) - center_lon);
+
+				// we make a rotation of -angle
+
+				float cos_angle = cos(-angle);
+				float sin_angle = sin(-angle);
+
+				float new_lon_00 = center_lon + cos_angle * (lon_00 - center_lon) - sin_angle * (lat_00 - center_lat) ;
+				float new_lat_00 = center_lat + sin_angle * (lon_00 - center_lon) + cos_angle * (lat_00 - center_lat) ;
+
+				float new_lon_10 = center_lon + cos_angle * (lon_10 - center_lon) - sin_angle * (lat_10 - center_lat) ;
+				float new_lat_10 = center_lat + sin_angle * (lon_10 - center_lon) + cos_angle * (lat_10 - center_lat) ;
+
+				float new_lon_11 = center_lon + cos_angle * (lon_11 - center_lon) - sin_angle * (lat_11 - center_lat) ;
+				float new_lat_11 = center_lat + sin_angle * (lon_11 - center_lon) + cos_angle * (lat_11 - center_lat) ;
+
+				float new_lon_01 = center_lon + cos_angle * (lon_01 - center_lon) - sin_angle * (lat_01 - center_lat) ;
+				float new_lat_01 = center_lat + sin_angle * (lon_01 - center_lon) + cos_angle * (lat_01 - center_lat) ;
+
+				std::cerr << "Angle: " << 180 /M_PI * angle << " deg." << std::endl;
+
+				std::cerr << "After rotation: " << new_lat_00 << " " << new_lon_00 << std::endl;
+				std::cerr << "After rotation: " << new_lat_10 << " " << new_lon_10 << std::endl;
+				std::cerr << "After rotation: " << new_lat_11 << " " << new_lon_11 << std::endl;
+				std::cerr << "After rotation: " << new_lat_01 << " " << new_lon_01 << std::endl;
+
+				KmzFile::LayerData ld ;
+				ld.rotation = -180/M_PI*angle ;					// angles are counter clockwise, so we flip sign here
+				ld.north_limit = 0.5*(new_lat_01+new_lat_11) ;
+				ld.south_limit = 0.5*(new_lat_00+new_lat_10) ;
+				ld.east_limit  = 0.5*(new_lon_10+new_lon_11) ;
+				ld.west_limit  = 0.5*(new_lon_00+new_lon_01) ;
+#else
+				KmzFile::LayerData ld ;
+				ld.rotation = 0.0;
+				ld.north_limit = 0.5*(lat_01+lat_11) ;
+				ld.south_limit = 0.5*(lat_00+lat_10) ;
+				ld.east_limit  = 0.5*(lon_10+lon_11) ;
+				ld.west_limit  = 0.5*(lon_00+lon_01) ;
+#endif
+
+                // read image data
+
+				if(!qct.readFilename(inputfile,query,image_data))
+					return 0;
+
+                // save it into a proper png file
+
+                char output_template[100];
+                sprintf(output_template,"image_data_%04d.png",block_index);
+
+				writePNGFilename(output_template,image_data,qct.getPalette(),block_size_x*QCT_TILE_SIZE,block_size_y*QCT_TILE_SIZE);
+
+                std::cerr << "Block " << block_index << " ("<< i << ","<< j << ") : [" << ld.south_limit << "," << ld.north_limit << "] x [" << ld.west_limit << "," << ld.east_limit << "]" << std::endl;
+#ifdef DEBUG
+				std::cerr << "north-south in km: " << (ld.north_limit - ld.south_limit)*M_PI/180*6378 << std::endl;
+				std::cerr << "east-west   in km: " << (ld.east_limit  - ld.west_limit )*M_PI/180*6378 * cos(center_lat*M_PI/180) << std::endl;
+#endif
+				kmz.layers.push_back(ld);
+
+                ++block_index;
+			}
+
         kmz.writeToFile("doc.kml");
     }
 
