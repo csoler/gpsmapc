@@ -60,6 +60,8 @@ void MapDB::loadDB(const QString& source_directory,const QString& source_file)
 
     if (!f.open(QIODevice::ReadOnly ))
     {
+        std::cerr << "Creating base directory " << source_directory.toStdString() << std::endl;
+
         if(!QDir(source_directory).exists())
             QDir(QDir::currentPath()).mkdir(source_directory);
 
