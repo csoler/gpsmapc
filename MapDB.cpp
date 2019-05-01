@@ -20,9 +20,7 @@ void MapDB::createEmptyMap(QFile& map_file)
 
     QTextStream o(&map_file);
 
-	o << "<xml>" << endl;
-	o << "	<Map name=\"Empty map\" update_time=\"431437198057\" longitude_min=\"0.0\" longitude_max=\"1.0\"/>" << endl;
-	o << "</xml>" << endl;
+	o << "<Map name=\"Empty map\" update_time=\"431437198057\" longitude_min=\"0.0\" longitude_max=\"1.0\"/>" << endl;
 
 	map_file.close();
 }
@@ -43,15 +41,13 @@ bool MapDB::init()
 
 // DB file structure:
 //
-// <xml>
-//		<Map name="some name" update_time="431437198057" longitude_min="0.0" longitude_max="1.0">
-//			<ImageData file="somefile.jpg" scale="22.3">
-//				<DataPoint img_coord_i="34" img_coord_j="223" latitude="1.39438" longitude="4.2323"/>
-//				<InterestPoint img_coord_i="34" img_coord_j="223" sift="ZGZrYXZud3dudmluaW9iO25mb3Zmczt2ZnNpZG8K="/>
-//				<InterestPoint img_coord_i="14" img_coord_j="146" sift="YzkwMnV0OTBtdTkwbXR1OTBtYzBteGE5YTBtY2ltdml0bXZ3Cg=="/>
-//			</ImageData>
-//		</map>
-// </xml>
+//	<Map name="some name" update_time="431437198057" longitude_min="0.0" longitude_max="1.0">
+//		<ImageData file="somefile.jpg" scale="22.3">
+//			<DataPoint img_coord_i="34" img_coord_j="223" latitude="1.39438" longitude="4.2323"/>
+//			<InterestPoint img_coord_i="34" img_coord_j="223" sift="ZGZrYXZud3dudmluaW9iO25mb3Zmczt2ZnNpZG8K="/>
+//			<InterestPoint img_coord_i="14" img_coord_j="146" sift="YzkwMnV0OTBtdTkwbXR1OTBtYzBteGE5YTBtY2ltdml0bXZ3Cg=="/>
+//		</ImageData>
+//	</map>
 
 void MapDB::loadDB(const QString& source_directory,const QString& source_file)
 {
@@ -82,9 +78,9 @@ void MapDB::loadDB(const QString& source_directory,const QString& source_file)
     QString type=root.tagName();
 
     if(type != "Map")
-        throw std::runtime_error("Wong file type: \"Map\" expected.");
+        throw std::runtime_error("Wong file type: \"" + type.toStdString() + "\" found, \"Map\" expected.");
 
-    mName = root.attribute("nname","[No name]");
+    mName = root.attribute("name","[No name]");
     mCreationTime = root.attribute("update_time","0").toULongLong();
 
     std::cerr << "Reading map \"" << mName.toStdString() << "\" creation time: " << QDateTime::fromSecsSinceEpoch(mCreationTime).toString().toStdString() << std::endl;
