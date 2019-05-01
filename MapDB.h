@@ -1,5 +1,11 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
+class QFile ;
+class QString ;
+
 class MapDB
 {
 	public:
@@ -20,10 +26,22 @@ class MapDB
 		};
 
 	private:
-		std::string mRootDirectory ;
+		bool init();
+		void loadDB(const QString& source_directory, const QString& source_file);
+		void createEmptyMap(QFile& map_file);
 
-		std::vector<RegisteredImage> mImages ;
+		QString mRootDirectory ;
+
+        bool mMapInited ;
+
+        // actual map data
+
+		std::vector<MapDB::RegisteredImage> mImages ;
 
 		GPSCoord mTopLeft ;
 		GPSCoord mBottomRight ;
+
+        QString mName ;
+        time_t  mCreationTime;
+
 };
