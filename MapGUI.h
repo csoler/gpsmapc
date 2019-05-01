@@ -1,21 +1,16 @@
 #pragma once
 
 #include <QMainWindow>
+#include "ui_MapGUIWindow.h"
 
-namespace Ui {
-	class MapGUIWindow;
-}
 
-class MapGUIWindow : public QMainWindow
+class MapGUIWindow : public QMainWindow, Ui::MapGUIWindow
 {
     Q_OBJECT
 
 public:
-    explicit MapGUIWindow(QWidget *parent = 0);
-    ~MapGUIWindow();
-
-private:
-    Ui::MapGUIWindow *ui;
+    MapGUIWindow();
+    virtual ~MapGUIWindow();
 };
 
 

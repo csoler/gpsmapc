@@ -1,14 +1,11 @@
 #include "MapGUI.h"
 #include "ui_MapGUIWindow.h"
 
-MapGUIWindow::MapGUIWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MapGUIWindow)
+MapGUIWindow::MapGUIWindow() : QMainWindow()
 {
-    ui->setupUi(this);
+    setupUi(this);
 }
 
 MapGUIWindow::~MapGUIWindow()
 {
-    delete ui;
 }

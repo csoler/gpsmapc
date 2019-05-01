@@ -16,4 +16,5 @@ int main(int argc,char *argv[])
     MapDB mapdb(MAP_ROOT_DIRECTORY) ;
 
 	return IGNMapperApp.exec();
+
 }

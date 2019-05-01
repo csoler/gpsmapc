@@ -44,7 +44,11 @@ Project components
 				- split the window into small square tiles of size 1024x1024 and recopute the images by picking the pixels in the global map
 				- exports the map as a directory containing all tiles, plus a kmz file
 
-			* adding a new image can be done from the GUI. The image is shown in a separate window and the user can select a point and enter its GPS coordinates
+			* adding a new image can be done from the GUI using drag&drop. The image is added in the bottom left corner and the user can select 
+			  a point in it and supply GPS coordinates for this point and the image scale, or two points and no scale.
+
+			  When automatic registration is active, the image is first checked with existing images and automatically placed, or 
+			  (if nothing found) left to the bottom left corner.
 
 			* at start the GUI shows the whole set of images. The ones that are not registered yet are shows in a specific place. The user can click on them and
 				supply GPS coordinates for a point, which moves the image to its right place
@@ -54,3 +58,4 @@ Project components
 			* the position of images is optimized to remove all apparent discontinuities
 			* when a new image is added, GPS coordinates are automatically computed using the automatic registration system and left for the user to validate.
 
+	[ ] Automatic DL of missing images from internet. That is a bit more difficult to do, but probably possible.
