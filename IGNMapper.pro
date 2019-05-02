@@ -1,11 +1,11 @@
 TEMPLATE = app
-CONFIG += qt
+CONFIG += qt uic
 QT += gui xml widgets opengl
 
-SOURCES = IGNMapper.cpp MapDB.cpp MapAccessor.cpp MapGUI.cpp MapViewer.cpp
-HEADERS = MapDB.h MapAccessor.h MapGUI.h MapGUIWindow.h MapViewer.h config.h
+SOURCES = IGNMapper.cpp MapDB.cpp MapAccessor.cpp MapGUIWindow.cpp MapViewer.cpp
+HEADERS = MapDB.h MapAccessor.h MapGUIWindow.h MapViewer.h config.h
 
-FORMS = MapGUIWindow.ui
+FORMS =
 
 LIBS *= -lQGLViewer
 

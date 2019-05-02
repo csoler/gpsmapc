@@ -1,7 +1,7 @@
 #include <QApplication>
 
 #include "config.h"
-#include "MapGUI.h"
+#include "MapGUIWindow.h"
 #include "MapDB.h"
 
 int main(int argc,char *argv[])
