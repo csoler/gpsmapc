@@ -84,4 +84,8 @@ void MapDB::loadDB(const QString& source_directory,const QString& source_file)
     mCreationTime = root.attribute("update_time","0").toULongLong();
 
     std::cerr << "Reading map \"" << mName.toStdString() << "\" creation time: " << QDateTime::fromSecsSinceEpoch(mCreationTime).toString().toStdString() << std::endl;
+
+    // now load all images in the source directory and see if they are already in the DB. If not, add them.
+
+
 }

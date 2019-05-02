@@ -15,10 +15,12 @@ void MapViewer::dragEnterEvent(QDragEnterEvent *event)
 
 	QStringList list = event->mimeData()->formats() ;
 
+#ifdef DEBUG
 	for(QStringList::const_iterator it(list.begin());it!=list.end();++it)
 		std::cerr << "  " << (*it).toStdString() << "\t\tValue: " << QString(event->mimeData()->data(*it)).toStdString() << std::endl;
+#endif
 
-	if (event->mimeData()->hasFormat("text/plain"))
+	if (event->mimeData()->hasFormat("text/uri-list"))
 		event->accept();
 	else
 		event->ignore();
@@ -39,25 +41,15 @@ void MapViewer::dragEnterEvent(QDragEnterEvent *event)
 
 void MapViewer::dropEvent(QDropEvent *event)
 {
-	if (event->mimeData()->hasFormat("STRING"))
+	if (event->mimeData()->hasUrls())
 	{
-		QString filename(QUrl(event->mimeData()->data("STRING")).path() );
-#ifdef DEBUG
-		for(int i=0;i<filename.length();++i)
-			std::cerr << "char " << i << ":'" << (char)filename[i].toAscii() << "'" << std::endl;
-#endif
-		while(!filename[filename.length()-1].isLetter())
-		{
-			std::cerr << "Chopping one char." << std::endl;
-			filename.chop(1) ;
-		}
+        QList<QUrl> urls = event->mimeData()->urls();
 
-#ifdef DEBUG
-		std::cerr << "Dropping image \"" << filename.toStdString() << "\" at pos " << event->pos().x() << " " << event->pos().y() << std::endl;
+        foreach(QUrl url,urls)
+        {
+            std::cerr << "Adding file from url " << url.toString().toStdString() << std::endl;
+        }
 
-		std::cerr << "File: " << QUrl(filename).path().toStdString() << std::endl;
-#endif
-		std::cerr << "Added image " << 	QUrl(filename).path().toStdString() << std::endl;
 		event->accept();
 	}
 	else
