@@ -4,6 +4,7 @@
 #include "config.h"
 #include "MapGUIWindow.h"
 #include "MapDB.h"
+#include "MapAccessor.h"
 
 int main(int argc,char *argv[])
 {
@@ -17,7 +18,9 @@ int main(int argc,char *argv[])
     // now create the map
 
     MapDB mapdb(MAP_ROOT_DIRECTORY) ;
+    MapAccessor ma(mapdb) ;
+
+    map_gui_win.setMapAccessor(ma);
 
 	return IGNMapperApp.exec();
-
 }

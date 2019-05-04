@@ -6,10 +6,15 @@
 
 MapGUIWindow::MapGUIWindow() : QMainWindow()
 {
-    setCentralWidget(new MapViewer(this));
+    setCentralWidget(mViewer = new MapViewer(this));
     std::cerr << "Creating a MapGUI Window" << std::endl;
 }
 
 MapGUIWindow::~MapGUIWindow()
 {
+}
+
+void MapGUIWindow::setMapAccessor(const MapAccessor& ma)
+{
+    mViewer->setMapAccessor(&ma);
 }

@@ -14,6 +14,12 @@ MapViewer::MapViewer(QWidget *parent)
     mCurrentSlice_H = height();
 }
 
+void MapViewer::setMapAccessor(const MapAccessor *ma)
+{
+    mMA = ma ;
+    updateSlice();
+}
+
 void MapViewer::dragEnterEvent(QDragEnterEvent *event)
 {
 	std::cerr << "Drag enter event: "<< std::endl;

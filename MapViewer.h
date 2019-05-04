@@ -1,9 +1,13 @@
 #include <QGLViewer/qglviewer.h>
 
+class MapAccessor;
+
 class MapViewer: public QGLViewer
 {
 public:
 	MapViewer(QWidget *parent) ;
+
+    void setMapAccessor(const MapAccessor *ma);
 
 	virtual void draw() override ;
 
@@ -28,6 +32,8 @@ protected:
 	float mViewScale ;
 
 	bool mSliceUpdateNeeded ;
+
+    const MapAccessor *mMA;
 };
 
 

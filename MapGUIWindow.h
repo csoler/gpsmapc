@@ -2,6 +2,9 @@
 
 #include <QMainWindow>
 
+class MapAccessor ;
+class MapViewer ;
+
 class MapGUIWindow : public QMainWindow
 {
     Q_OBJECT
@@ -9,6 +12,11 @@ class MapGUIWindow : public QMainWindow
 public:
     MapGUIWindow();
     virtual ~MapGUIWindow();
+
+    void setMapAccessor(const MapAccessor& ma);
+
+private:
+    MapViewer *mViewer ;
 };
 
 
