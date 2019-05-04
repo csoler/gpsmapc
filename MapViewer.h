@@ -1,3 +1,4 @@
+#include "MapDB.h"
 #include <QGLViewer/qglviewer.h>
 
 class MapAccessor;
@@ -23,7 +24,7 @@ protected:
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
 	virtual void mouseMoveEvent(QMouseEvent *e) override;
-	// virtual void keyPressEvent(QKeyEvent *e) override;
+	virtual void keyPressEvent(QKeyEvent *e) override;
 
 	int mCurrentSlice_W ;
 	int mCurrentSlice_H ;
@@ -32,8 +33,11 @@ protected:
 	float mViewScale ;
 
 	bool mSliceUpdateNeeded ;
+    bool mExplicitDraw;
 
     const MapAccessor *mMA;
+
+    MapDB::GPSCoord mCenter;
 };
 
 

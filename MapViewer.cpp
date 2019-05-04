@@ -1,7 +1,9 @@
 #include <GL/glut.h>
 #include <QMimeData>
 
+#include "MapAccessor.h"
 #include "MapViewer.h"
+#include "MapDB.h"
 
 MapViewer::MapViewer(QWidget *parent)
     : QGLViewer(parent)
@@ -12,6 +14,11 @@ MapViewer::MapViewer(QWidget *parent)
     mCurrentSlice_data = NULL;
     mCurrentSlice_W = width();
     mCurrentSlice_H = height();
+
+    mExplicitDraw = true;
+
+    mCenter.lon = 6.0;
+    mCenter.lat = 45.0;
 }
 
 void MapViewer::setMapAccessor(const MapAccessor *ma)
@@ -71,6 +78,17 @@ void MapViewer::dropEvent(QDropEvent *event)
 	updateGL() ;
 }
 
+void MapViewer::keyPressEvent(QKeyEvent *e)
+{
+    switch(e->key())
+    {
+    case Qt::Key_X: mExplicitDraw = !mExplicitDraw ;
+        			updateGL();
+    default:
+        QGLViewer::keyPressEvent(e);
+    }
+}
+
 void MapViewer::resizeEvent(QResizeEvent *)
 {
     mSliceUpdateNeeded = true;
@@ -80,7 +98,7 @@ void MapViewer::draw()
 {
     std::cerr << "Drawing..." << std::endl;
 
-    if(mSliceUpdateNeeded)
+    if(mSliceUpdateNeeded && mExplicitDraw)
     {
         computeSlice();
         mSliceUpdateNeeded = false ;
@@ -97,16 +115,50 @@ void MapViewer::draw()
     glMatrixMode(GL_PROJECTION) ;
     glLoadIdentity() ;
 
-    glOrtho(0,1,0,1,1,-1) ;
+    glOrtho(mBottomLeftViewCorner.lon,mTopRightViewCorner.lon,mBottomLeftViewCorner.lat,mTopRightViewCorner.lat,1,-1) ;
 
-    glRasterPos2f(0,0) ;
+    if(mExplicitDraw)
+	{
+		// Not the best way to do this: we compute the image manually. However, this
+		// method is the one we're going to use for exporting the data, so it's important to be able to visualize its output as well.
 
-    glPixelTransferf(GL_RED_SCALE  ,100.0) ;
-    glPixelTransferf(GL_GREEN_SCALE,100.0) ;
-    glPixelTransferf(GL_BLUE_SCALE ,100.0) ;
+		glRasterPos2f(0,0) ;
 
-    glDrawPixels(mCurrentSlice_W,mCurrentSlice_H,GL_RGB,GL_FLOAT,(GLvoid*)mCurrentSlice_data) ;
+		glPixelTransferf(GL_RED_SCALE  ,100.0) ;
+		glPixelTransferf(GL_GREEN_SCALE,100.0) ;
+		glPixelTransferf(GL_BLUE_SCALE ,100.0) ;
 
+		glDrawPixels(mCurrentSlice_W,mCurrentSlice_H,GL_RGB,GL_FLOAT,(GLvoid*)mCurrentSlice_data) ;
+	}
+    else
+	{
+		// Here we use the graphics card for the texture mapping, so as to use the hardware to perform filtering.
+        // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
+        // method is only fod quick display purpose.
+
+        std::vector<MapDB::RegisteredImage> images_to_draw;
+        mMA->getImagesToDraw(mBottomLeftViewCorner,mTopRightViewCorner,images_to_draw);
+
+        for(uint32_t i=0;i<images_to_draw.size();++i)
+        {
+            float image_lon_size = images_to_draw[i].scale;
+            float image_lat_size = images_to_draw[i].scale * images_to_draw[i].H/(float)images_to_draw[i].W;
+
+            glEnable(GL_TEXTURE);
+            glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+
+            glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,images_to_draw[i].W,images_to_draw[i].H,0,GL_RGB,GL_UNSIGNED_BYTE,images_to_draw[i].pixel_data);
+
+            glBegin(GL_QUADS);
+
+            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+
+            glEnd();
+        }
+    }
 }
 
 void MapViewer::forceUpdate()

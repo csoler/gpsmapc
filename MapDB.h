@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
+#include <map>
 #include <vector>
+#include <QString>
 
 class QFile ;
 class QString ;
@@ -9,15 +10,13 @@ class QString ;
 class MapDB
 {
 	public:
-		MapDB(const std::string& directory_name) ; // initializes the map. Loads the registered images entries from xml file.
+		MapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from xml file.
 
 		struct GPSCoord
 		{
 			float lon ;
 			float lat ;
 		};
-
-        typedef uint64_t ImageID ;
 
 		struct RegisteredImage
 		{

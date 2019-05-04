@@ -13,8 +13,8 @@ std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c)
     return o << "(" << c.lon << "," << c.lat << ")" ;
 }
 
-MapDB::MapDB(const std::string& directory_name)
-    : mRootDirectory(QString::fromStdString(directory_name))
+MapDB::MapDB(const QString& directory_name)
+    : mRootDirectory(directory_name)
 {
     mMapInited = init();
     mMapChanged = false;
