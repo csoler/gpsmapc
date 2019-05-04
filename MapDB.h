@@ -17,9 +17,10 @@ class MapDB
 			float lat ;
 		};
 
+        typedef uint64_t ImageID ;
+
 		struct RegisteredImage
 		{
-			std::string filename ;		// name of the image in the database directory
 			int W,H ;					// width/height of the image
 			float scale;				// length of the image in degrees of longitude
 			GPSCoord top_left_corner;	// lon/lat of the top-left corner of the image
@@ -27,16 +28,19 @@ class MapDB
 
 	private:
 		bool init();
-		void loadDB(const QString& source_directory, const QString& source_file);
+		void loadDB(const QString& source_directory);
+		void saveDB(const QString& source_directory);
 		void createEmptyMap(QFile& map_file);
+        void checkDirectory(const QString& source_directory) ;
 
 		QString mRootDirectory ;
 
         bool mMapInited ;
+        bool mMapChanged;
 
         // actual map data
 
-		std::vector<MapDB::RegisteredImage> mImages ;
+		std::map<QString,MapDB::RegisteredImage> mImages ;
 
 		GPSCoord mTopLeft ;
 		GPSCoord mBottomRight ;
@@ -45,3 +49,5 @@ class MapDB
         time_t  mCreationTime;
 
 };
+
+std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c);

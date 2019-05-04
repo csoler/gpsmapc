@@ -3,14 +3,21 @@
 #include <QFile>
 #include <QTextStream>
 #include <QtXml>
+#include <QImage>
 
 #include "config.h"
 #include "MapDB.h"
+
+std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c)
+{
+    return o << "(" << c.lon << "," << c.lat << ")" ;
+}
 
 MapDB::MapDB(const std::string& directory_name)
     : mRootDirectory(QString::fromStdString(directory_name))
 {
     mMapInited = init();
+    mMapChanged = false;
 }
 
 void MapDB::createEmptyMap(QFile& map_file)
@@ -29,7 +36,12 @@ bool MapDB::init()
 {
     try
     {
-		loadDB(QString(mRootDirectory),QString(MAP_DEFINITION_FILE_NAME));
+		loadDB(mRootDirectory);
+
+        checkDirectory(mRootDirectory) ;
+
+        if(mMapChanged)
+            saveDB(mRootDirectory);
     }
     catch(std::runtime_error& e)
     {
@@ -49,8 +61,10 @@ bool MapDB::init()
 //		</ImageData>
 //	</map>
 
-void MapDB::loadDB(const QString& source_directory,const QString& source_file)
+void MapDB::loadDB(const QString& source_directory)
 {
+    QString source_file(MAP_DEFINITION_FILE_NAME);
+
     QDomDocument xmldoc;
     QFile f( source_directory + "/" + source_file);
 
@@ -85,7 +99,93 @@ void MapDB::loadDB(const QString& source_directory,const QString& source_file)
 
     std::cerr << "Reading map \"" << mName.toStdString() << "\" creation time: " << QDateTime::fromSecsSinceEpoch(mCreationTime).toString().toStdString() << std::endl;
 
+    // [...]
+}
+
+void MapDB::checkDirectory(const QString& source_directory)
+{
     // now load all images in the source directory and see if they are already in the DB. If not, add them.
 
+    QDir dir(source_directory) ;
 
+    std::cerr << "Now scanning source directory \"" << source_directory.toStdString() << "\"" << std::endl;
+
+    for(uint32_t i=0;i<dir.count();++i)
+		if(dir[i].endsWith(".jpg"))
+        {
+            std::cerr << "  Checking image file " << dir[i].toStdString() ;
+            auto it = mImages.find(dir[i]);
+
+            if(mImages.end() == it)
+            {
+                std::cerr << "  not in the database. Adding!" << std::endl;
+                QImage img_data(source_directory + "/" + dir[i]) ;
+
+                RegisteredImage image ;
+                image.W = img_data.width();
+                image.H = img_data.height();
+                image.scale = 10000 ;
+                image.top_left_corner.lon = 0.0 ;
+                image.top_left_corner.lat = 0.0 ;
+
+                mImages[dir[i]] = image;
+
+                mMapChanged = true;
+            }
+            else
+                std::cerr << "  already in the database. Coordinates: " << it->second.top_left_corner << std::endl;
+        }
 }
+
+void MapDB::saveDB(const QString& directory)
+{
+    QString filename(directory + "/" + MAP_DEFINITION_FILE_NAME);
+
+    std::cerr << "Saving DB to file " << filename.toStdString() << std::endl;
+
+    QDomDocument doc ;
+
+	QDomElement e = doc.createElement(QString("Map")) ;
+
+	e.setAttribute("creation_time",qulonglong(time(NULL)));
+	e.setAttribute("longitude_min",mTopLeft.lon) ;
+	e.setAttribute("longitude_max",mBottomRight.lon) ;
+	e.setAttribute("latitude_min",mTopLeft.lat) ;
+	e.setAttribute("latitude_max",mBottomRight.lat);
+
+    for(auto it(mImages.begin());it!=mImages.end();++it)
+	{
+		QDomElement ep = doc.createElement(QString("Image"));
+
+		ep.setAttribute("Filename",it->first);
+		ep.setAttribute("Width",it->second.W);
+		ep.setAttribute("Height",it->second.H);
+		ep.setAttribute("CornerLon",it->second.top_left_corner.lon);
+		ep.setAttribute("CornerLat",it->second.top_left_corner.lat);
+		ep.setAttribute("Scale",it->second.scale);
+
+		e.appendChild(ep);
+	}
+    doc.appendChild(e);
+
+    QFile dataFile(filename);
+
+    if(dataFile.open(QIODevice::WriteOnly))
+	{
+		QTextStream dataStream(&dataFile);
+		doc.save(dataStream, 2);
+		dataFile.flush();
+		dataFile.close();
+	}
+    else
+		std::cerr << "Error: cannot write to file " << filename.toStdString() << std::endl;
+}
+
+
+
+
+
+
+
+
+
