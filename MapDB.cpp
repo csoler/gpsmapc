@@ -99,6 +99,40 @@ void MapDB::loadDB(const QString& source_directory)
 
     std::cerr << "Reading map \"" << mName.toStdString() << "\" creation time: " << QDateTime::fromSecsSinceEpoch(mCreationTime).toString().toStdString() << std::endl;
 
+    mTopLeft.lon = root.toElement().attribute("longitude_min","0.0").toFloat();
+    mTopLeft.lat = root.toElement().attribute("latitude_min","0.0").toFloat();
+    mBottomRight.lon = root.toElement().attribute("longitude_max","0.0").toFloat();
+    mBottomRight.lat = root.toElement().attribute("latitude_max","0.0").toFloat();
+
+    mImages.clear();
+    QDomNode ep = root.firstChild();
+
+    while(!ep.isNull())
+	{
+        if(ep.toElement().tagName() == "Image")
+        {
+            RegisteredImage image ;
+            QDomElement e = ep.toElement();
+            ep = ep.nextSibling();
+
+			QString filename = e.attribute("Filename",QString());
+
+            if(!QFile(mRootDirectory + "/" + filename).exists())
+            {
+                std::cerr << "Warning: database mentions file " << filename.toStdString() << " but it wasn't found." << std::endl;
+                continue;
+            }
+
+			image.W = e.attribute("Width","0").toInt();
+			image.H = e.attribute("Height","0").toInt();
+			image.top_left_corner.lon = e.attribute("CornerLon","0.0").toFloat();
+			image.top_left_corner.lat = e.attribute("CornerLat","0.0").toFloat();
+			image.scale = e.attribute("Scale","10000").toInt();
+
+            mImages[filename] = image;
+		}
+	}
+
     // [...]
 }
 
@@ -135,6 +169,8 @@ void MapDB::checkDirectory(const QString& source_directory)
             else
                 std::cerr << "  already in the database. Coordinates: " << it->second.top_left_corner << std::endl;
         }
+
+    mMapChanged = false;
 }
 
 void MapDB::saveDB(const QString& directory)
@@ -179,6 +215,8 @@ void MapDB::saveDB(const QString& directory)
 	}
     else
 		std::cerr << "Error: cannot write to file " << filename.toStdString() << std::endl;
+
+    mMapChanged = false ;
 }
 
 
