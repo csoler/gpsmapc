@@ -1,3 +1,4 @@
+#include <GL/glut.h>
 #include <QApplication>
 
 #include "config.h"
@@ -10,6 +11,8 @@ int main(int argc,char *argv[])
 
 	MapGUIWindow map_gui_win;
 	map_gui_win.show();
+
+    glutInit(&argc,argv);
 
     // now create the map
 
