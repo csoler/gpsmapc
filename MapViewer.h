@@ -24,16 +24,21 @@ protected:
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
 	virtual void mouseMoveEvent(QMouseEvent *e) override;
+	virtual void mouseReleaseEvent(QMouseEvent *e) override;
+	virtual void mousePressEvent(QMouseEvent *e) override;
 	virtual void keyPressEvent(QKeyEvent *e) override;
 
 	int mCurrentSlice_W ;
 	int mCurrentSlice_H ;
 
 	float *mCurrentSlice_data ;
-	float mViewScale ;
+	float mViewScale ;				// width of the viewing window in degrees of longitude
 
 	bool mSliceUpdateNeeded ;
     bool mExplicitDraw;
+    int  mLastX ;
+    int  mLastY ;
+    bool mMoving ;
 
     const MapAccessor *mMA;
 

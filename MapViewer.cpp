@@ -10,15 +10,15 @@ MapViewer::MapViewer(QWidget *parent)
 {
     std::cerr << "Creating a MapViewer..."<< std::endl;
     setAcceptDrops(true);
-    mViewScale = 1.0;
     mCurrentSlice_data = NULL;
     mCurrentSlice_W = width();
     mCurrentSlice_H = height();
 
     mExplicitDraw = true;
 
-    mCenter.lon = 6.0;
-    mCenter.lat = 45.0;
+    mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
+    mCenter.lon = 0.0;
+    mCenter.lat = 0.0;
 }
 
 void MapViewer::setMapAccessor(const MapAccessor *ma)
@@ -89,9 +89,11 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
     }
 }
 
-void MapViewer::resizeEvent(QResizeEvent *)
+void MapViewer::resizeEvent(QResizeEvent *e)
 {
     mSliceUpdateNeeded = true;
+
+    QGLViewer::resizeEvent(e);
 }
 
 void MapViewer::draw()
@@ -115,7 +117,9 @@ void MapViewer::draw()
     glMatrixMode(GL_PROJECTION) ;
     glLoadIdentity() ;
 
-    glOrtho(mBottomLeftViewCorner.lon,mTopRightViewCorner.lon,mBottomLeftViewCorner.lat,mTopRightViewCorner.lat,1,-1) ;
+    float aspect_ratio = height() / (float)width() ;
+
+    glOrtho(mCenter.lon - mViewScale/2.0,mCenter.lon + mViewScale/2.0,mCenter.lat - mViewScale/2.0*aspect_ratio,mCenter.lat + mViewScale/2.0*aspect_ratio,1,-1) ;
 
     if(mExplicitDraw)
 	{
@@ -136,25 +140,35 @@ void MapViewer::draw()
         // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
         // method is only fod quick display purpose.
 
-        std::vector<MapDB::RegisteredImage> images_to_draw;
-        mMA->getImagesToDraw(mBottomLeftViewCorner,mTopRightViewCorner,images_to_draw);
+        std::vector<MapAccessor::ImageData> images_to_draw;
+        MapDB::GPSCoord bottomLeftViewCorner(  mCenter.lon - mViewScale/2.0, mCenter.lat + mViewScale/2.0*aspect_ratio );
+        MapDB::GPSCoord topRightViewCorner  (  mCenter.lon + mViewScale/2.0, mCenter.lat - mViewScale/2.0*aspect_ratio );
+
+        mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,images_to_draw);
 
         for(uint32_t i=0;i<images_to_draw.size();++i)
         {
-            float image_lon_size = images_to_draw[i].scale;
-            float image_lat_size = images_to_draw[i].scale * images_to_draw[i].H/(float)images_to_draw[i].W;
+            float image_lon_size = images_to_draw[i].lon_width;
+            float image_lat_size = images_to_draw[i].lon_width * images_to_draw[i].H/(float)images_to_draw[i].W;
+
+            std::cerr << "  drawing texture " << images_to_draw[i].filename.toStdString() << std::endl;
 
             glEnable(GL_TEXTURE);
             glPixelStorei(GL_UNPACK_ALIGNMENT,1);
 
             glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,images_to_draw[i].W,images_to_draw[i].H,0,GL_RGB,GL_UNSIGNED_BYTE,images_to_draw[i].pixel_data);
 
+            glColor3f(1,1,1);
             glBegin(GL_QUADS);
 
-            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+
+
+
+
+            glTexCoord2f(0.0,0.0); glVertex2f(0  ,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f(0.1,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f(0.1,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
 
             glEnd();
         }
@@ -172,13 +186,44 @@ void MapViewer::updateSlice()
     mSliceUpdateNeeded = true ;
 }
 
+void MapViewer::mouseReleaseEvent(QMouseEvent *e)
+{
+    if(e->button() == Qt::LeftButton)
+    {
+        mMoving = false ;
+        std::cerr << "Moving stopped" << std::endl;
+    }
+
+    QGLViewer::mouseReleaseEvent(e);
+}
+
+void MapViewer::mousePressEvent(QMouseEvent *e)
+{
+    if(e->button() == Qt::LeftButton)
+    {
+        mMoving = true ;
+        mLastX = e->globalX();
+        mLastY = e->globalY();
+        std::cerr << "Moving started current_pos = " << mLastX << "," << mLastY << std::endl;
+    }
+    QGLViewer::mousePressEvent(e) ;
+}
+
 void MapViewer::mouseMoveEvent(QMouseEvent *e)
 {
-    if(e->modifiers() & Qt::ControlModifier)
+    if(mMoving)
     {
-        //updateViewingParameter(std::min(height()-1,std::max(0,height() - 1 - e->y()))/(float)height()) ;
+        mCenter.lon -= (e->globalX() - mLastX) * mViewScale / width() ;
+        mCenter.lat += (e->globalY() - mLastY) * mViewScale / width() ;
+
+        std::cerr << "Current x=" << e->globalX() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->globalX() - mLastX << ", " << e->globalY() - mLastY << std::endl;
+
+        mLastX = e->globalX();
+        mLastY = e->globalY();
         updateGL() ;
     }
+
+    QGLViewer::mouseMoveEvent(e);
 }
 
 void MapViewer::wheelEvent(QWheelEvent *e)

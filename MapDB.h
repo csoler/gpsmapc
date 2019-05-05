@@ -14,6 +14,9 @@ class MapDB
 
 		struct GPSCoord
 		{
+            GPSCoord(float _lon,float _lat) : lon(_lon),lat(_lat) {}
+            GPSCoord() : lon(0.0f),lat(0.0f) {}
+
 			float lon ;
 			float lat ;
 		};
@@ -24,6 +27,10 @@ class MapDB
 			float scale;				// length of the image in degrees of longitude
 			GPSCoord top_left_corner;	// lon/lat of the top-left corner of the image
 		};
+
+        // For debugging and initialization purposes
+
+        const std::map<QString,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
 
 	private:
 		bool init();
