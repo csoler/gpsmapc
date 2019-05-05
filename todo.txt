@@ -4,16 +4,18 @@
 
 
 TODO List
-	[ ] make the project compilation/coding structure
+	[X] make the project compilation/coding structure
 	[X] list the wanted features and how to do them
 	[ ] implement script to sync the database into a safe place
-	[ ] implement empty GUI prototype
-	[ ] implement database loading/saving
-	[ ] implement map accessor
-	[ ] implement GUI navigation
-	[ ] implement GUI drag+drop image adding
+	[X] implement empty GUI prototype
+	[X] implement database loading/saving
+	[X] implement map accessor
+	[X] implement GUI navigation
+	[/] implement GUI drag+drop image adding
 	[ ] implement GUI image manual registration
-	[ ] start building a minimal map for testing
+	[ ] implement image selection
+	[ ] implement image moving
+	[X] start building a minimal map for testing
 	[ ] implement Garmin custom map export
 	[ ] test the Garmin export 
 	[ ] implement automatic registration

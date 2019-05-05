@@ -22,6 +22,7 @@ protected:
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
 	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
+	void computeRealCoordinates(int i,int j,float& longitude,float& latitude) const;
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
@@ -41,8 +42,10 @@ protected:
     int  mLastX ;
     int  mLastY ;
     bool mMoving ;
+    QString mSelectedImage;
 
     const MapAccessor *mMA;
+	std::vector<MapAccessor::ImageData> mImagesToDraw;
 
     MapDB::GPSCoord mCenter;
 };

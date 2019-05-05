@@ -9,7 +9,10 @@ MapViewer::MapViewer(QWidget *parent)
     : QGLViewer(parent)
 {
     std::cerr << "Creating a MapViewer..."<< std::endl;
+
     setAcceptDrops(true);
+    setMouseTracking(true);
+
     mCurrentSlice_data = NULL;
     mCurrentSlice_W = width();
     mCurrentSlice_H = height();
@@ -147,11 +150,10 @@ void MapViewer::draw()
         // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
         // method is only fod quick display purpose.
 
-        std::vector<MapAccessor::ImageData> images_to_draw;
         MapDB::GPSCoord bottomLeftViewCorner(  mCenter.lon - mViewScale/2.0, mCenter.lat + mViewScale/2.0*aspect_ratio );
         MapDB::GPSCoord topRightViewCorner  (  mCenter.lon + mViewScale/2.0, mCenter.lat - mViewScale/2.0*aspect_ratio );
 
-        mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,images_to_draw);
+        mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,mImagesToDraw);
 
 		glPixelTransferf(GL_RED_SCALE  ,1.0) ;
 		glPixelTransferf(GL_GREEN_SCALE,1.0) ;
@@ -161,14 +163,14 @@ void MapViewer::draw()
 
 		CHECK_GL_ERROR();
 
-        for(uint32_t i=0;i<images_to_draw.size();++i)
+        for(uint32_t i=0;i<mImagesToDraw.size();++i)
         {
-            float image_lon_size = images_to_draw[i].lon_width;
-            float image_lat_size = images_to_draw[i].lon_width * images_to_draw[i].H/(float)images_to_draw[i].W;
+            float image_lon_size = mImagesToDraw[i].lon_width;
+            float image_lat_size = mImagesToDraw[i].lon_width * mImagesToDraw[i].H/(float)mImagesToDraw[i].W;
 
             glDisable(GL_LIGHTING);
 
-			GLuint tex_id = getTextureId(images_to_draw[i].filename,images_to_draw[i]) ;
+			GLuint tex_id = getTextureId(mImagesToDraw[i].filename,mImagesToDraw[i]) ;
 
             glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D,tex_id);
@@ -183,23 +185,34 @@ void MapViewer::draw()
 
             glBegin(GL_QUADS);
 
-            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
 
             glEnd();
 			glDisable(GL_TEXTURE_2D);
 
             CHECK_GL_ERROR();
 
+            if(mImagesToDraw[i].filename == mSelectedImage)
+            {
+				glLineWidth(5.0);
+				glColor3f(1.0,0.7,0.2) ;
+			}
+			else
+			{
+				glLineWidth(1.0);
+				glColor3f(1.0,1.0,1.0);
+			}
+
             glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
             glBegin(GL_QUADS);
-            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
             glEnd();
         }
 		CHECK_GL_ERROR();
@@ -280,6 +293,14 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
     QGLViewer::mousePressEvent(e) ;
 }
 
+void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
+{
+    longitude = (i/(float)width()-0.5) * mViewScale + mCenter.lon ;
+    latitude  = -(j/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
+
+    std::cerr << longitude << " " << latitude << std::endl;
+}
+
 void MapViewer::mouseMoveEvent(QMouseEvent *e)
 {
     if(mMoving)
@@ -293,6 +314,29 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
         mLastX = e->globalX();
         mLastY = e->globalY();
         updateGL() ;
+    }
+    else // enter image selection mode
+    {
+        float latitude, longitude;
+        computeRealCoordinates(e->x(),e->y(),longitude,latitude);
+
+        QString new_selection ;
+        float aspect = height()/(float)width();
+
+        // that could be accelerated using a KDtree
+        for(int i=mImagesToDraw.size()-1;i>=0;--i)
+            if(mImagesToDraw[i].top_left_corner.lon <= longitude && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
+            && mImagesToDraw[i].top_left_corner.lat >= latitude  && mImagesToDraw[i].top_left_corner.lat - mImagesToDraw[i].lon_width * aspect <= latitude )
+            {
+                new_selection = mImagesToDraw[i].filename;
+                break;
+            }
+
+        if(new_selection != mSelectedImage)
+        {
+            mSelectedImage = new_selection;
+            updateGL();
+        }
     }
 
     QGLViewer::mouseMoveEvent(e);
