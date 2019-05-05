@@ -33,6 +33,10 @@ class MapDB
         const std::map<QString,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
         const QString& rootDirectory() const { return mRootDirectory; }
 
+		void moveImage(const QString& mSelectedImage,float delta_lon,float delta_lat);
+
+        void save();
+
 	private:
 		bool init();
 		void loadDB(const QString& source_directory);

@@ -9,7 +9,7 @@ class MapViewer: public QGLViewer
 public:
 	MapViewer(QWidget *parent) ;
 
-    void setMapAccessor(const MapAccessor *ma);
+    void setMapAccessor(MapAccessor *ma);
 
 	virtual void draw() override ;
 
@@ -45,7 +45,7 @@ protected:
     bool mMoving ;
     QString mSelectedImage;
 
-    const MapAccessor *mMA;
+    MapAccessor *mMA;
 	std::vector<MapAccessor::ImageData> mImagesToDraw;
 
     MapDB::GPSCoord mCenter;

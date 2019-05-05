@@ -3,7 +3,7 @@
 
 #include "MapAccessor.h"
 
-void MapAccessor::getImagesToDraw(const MapDB::GPSCoord& mBottomLeftViewCorner, const MapDB::GPSCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
+void MapAccessor::getImagesToDraw(MapDB::GPSCoord &mBottomLeftViewCorner, const MapDB::GPSCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
 {
     // For now, just dont be subtle: return all known images.
     // To do:
@@ -17,12 +17,13 @@ void MapAccessor::getImagesToDraw(const MapDB::GPSCoord& mBottomLeftViewCorner, 
     {
         ImageData id ;
 
-        id.W = it->second.W;
-        id.H = it->second.H;
-        id.lon_width = it->second.scale;
+        id.W               = it->second.W;
+        id.H               = it->second.H;
+        id.lon_width       = it->second.scale;
         id.top_left_corner = it->second.top_left_corner;
-        id.filename = mDb.rootDirectory() + "/" + it->first ;
-        id.pixel_data = getPixelData(id.filename);
+        id.directory       = mDb.rootDirectory() ;
+        id.filename        = it->first ;
+        id.pixel_data      = getPixelData(id.directory + "/" + id.filename);
 
         images_to_draw.push_back(id);
     }
@@ -46,4 +47,14 @@ const unsigned char *MapAccessor::getPixelData(const QString& filename) const
     mImageCache[filename] = QImage(filename).scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
 
     return mImageCache[filename].bits();
+}
+
+void MapAccessor::moveImage(const QString& image_filename,float delta_lon,float delta_lat)
+{
+    mDb.moveImage(image_filename,delta_lon,delta_lat);
+}
+
+void MapAccessor::saveMap()
+{
+	mDb.save();
 }

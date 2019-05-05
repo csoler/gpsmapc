@@ -6,7 +6,7 @@
 class MapAccessor
 {
 	public:
-		MapAccessor(const MapDB& mdb) : mDb(mdb) {}
+		MapAccessor(MapDB& mdb) : mDb(mdb) {}
 
         struct ImageData
         {
@@ -14,17 +14,20 @@ class MapAccessor
             float lon_width ;
             MapDB::GPSCoord top_left_corner ;
             const unsigned char *pixel_data;
+            QString directory;
             QString filename;
         };
 
-        void getImagesToDraw(const MapDB::GPSCoord& mBottomLeftViewCorner,const MapDB::GPSCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
+        void getImagesToDraw(MapDB::GPSCoord& mBottomLeftViewCorner,const MapDB::GPSCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
 
 		void generateImage(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,float scale,MapDB::RegisteredImage& img_out,unsigned char *& pixels_out) ;
 
+		void moveImage(const QString& image_filename,float delta_lon,float delta_lat);
+		void saveMap();
 	private:
 		const unsigned char *getPixelData(const QString& filename) const;
 
-		const MapDB& mDb;
+		MapDB& mDb;
         mutable std::map<QString,QImage> mImageCache ;
 };
 

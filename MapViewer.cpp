@@ -26,7 +26,7 @@ MapViewer::MapViewer(QWidget *parent)
     mCenter.lat = 0.0;
 }
 
-void MapViewer::setMapAccessor(const MapAccessor *ma)
+void MapViewer::setMapAccessor(MapAccessor *ma)
 {
     mMA = ma ;
     updateSlice();
@@ -87,8 +87,13 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 {
     switch(e->key())
     {
+    case Qt::Key_W: mMA->saveMap();
+        displayMessage("Map saved");
+		break;
+
     case Qt::Key_X: mExplicitDraw = !mExplicitDraw ;
         			updateGL();
+        break;
     default:
         QGLViewer::keyPressEvent(e);
     }
@@ -301,8 +306,9 @@ void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latit
 {
     longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
     latitude  =-(j/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
-
+#ifdef DEBUG
     std::cerr << longitude << " " << latitude << std::endl;
+#endif
 }
 
 void MapViewer::mouseMoveEvent(QMouseEvent *e)
@@ -311,7 +317,15 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
     {
         if(mMovingSelected)
         {
-            std::cerr << "moving selected image" << std::endl;
+        	float delta_lon = - (e->globalX() - mLastX) * mViewScale / width() ;
+        	float delta_lat =   (e->globalY() - mLastY) * mViewScale / width() ;
+
+            mMA->moveImage(mSelectedImage,-delta_lon,-delta_lat);
+
+			mLastX = e->globalX();
+			mLastY = e->globalY();
+
+            updateGL();
             return;
         }
 

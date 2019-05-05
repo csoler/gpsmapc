@@ -219,6 +219,27 @@ void MapDB::saveDB(const QString& directory)
     mMapChanged = false ;
 }
 
+void MapDB::moveImage(const QString& filename,float delta_lon,float delta_lat)
+{
+    auto it = mImages.find(filename) ;
+
+    if(it == mImages.end())
+    {
+        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << filename.toStdString() << std::endl;
+        return;
+    }
+
+    it->second.top_left_corner.lon += delta_lon;
+    it->second.top_left_corner.lat += delta_lat;
+
+    mMapChanged = true;
+}
+
+void MapDB::save()
+{
+	saveDB(mRootDirectory);
+    std::cerr << "Map saved!" << std::endl;
+}
 
 
 

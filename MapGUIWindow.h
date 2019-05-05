@@ -13,7 +13,7 @@ public:
     MapGUIWindow();
     virtual ~MapGUIWindow();
 
-    void setMapAccessor(const MapAccessor& ma);
+    void setMapAccessor(MapAccessor &ma);
 
 private:
     MapViewer *mViewer ;

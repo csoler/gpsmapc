@@ -14,7 +14,7 @@ MapGUIWindow::~MapGUIWindow()
 {
 }
 
-void MapGUIWindow::setMapAccessor(const MapAccessor& ma)
+void MapGUIWindow::setMapAccessor(MapAccessor& ma)
 {
     mViewer->setMapAccessor(&ma);
 }
