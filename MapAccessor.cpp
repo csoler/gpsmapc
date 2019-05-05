@@ -43,7 +43,7 @@ const unsigned char *MapAccessor::getPixelData(const QString& filename) const
 
     std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
 
-    mImageCache[filename] = QImage(filename) ;
+    mImageCache[filename] = QImage(filename).scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
 
     return mImageCache[filename].bits();
 }

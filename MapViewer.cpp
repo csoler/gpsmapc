@@ -183,10 +183,10 @@ void MapViewer::draw()
 
             glBegin(GL_QUADS);
 
-            glTexCoord2f(0.0,0.0); glVertex2f(0  ,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f(0.1,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f(0.1,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
 
             glEnd();
 			glDisable(GL_TEXTURE_2D);
@@ -196,10 +196,10 @@ void MapViewer::draw()
             glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
             glBegin(GL_QUADS);
-            glTexCoord2f(0.0,0.0); glVertex2f(0  ,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f(0.1,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f(0.1,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
             glEnd();
         }
 		CHECK_GL_ERROR();
@@ -230,8 +230,7 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
 
 		glEnable(GL_TEXTURE_2D);
-		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,img_data.W,img_data.H,0,GL_RGB,GL_UNSIGNED_BYTE,img_data.pixel_data);
-		//glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,128,128,0,GL_RGB,GL_FLOAT,mCurrentSlice_data);
+		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.pixel_data);
 		glDisable(GL_TEXTURE_2D);
 
 		CHECK_GL_ERROR();
@@ -259,7 +258,9 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
     if(e->button() == Qt::LeftButton)
     {
         mMoving = false ;
+#ifdef DEBUG
         std::cerr << "Moving stopped" << std::endl;
+#endif
     }
 
     QGLViewer::mouseReleaseEvent(e);
@@ -272,7 +273,9 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
         mMoving = true ;
         mLastX = e->globalX();
         mLastY = e->globalY();
+#ifdef DEBUG
         std::cerr << "Moving started current_pos = " << mLastX << "," << mLastY << std::endl;
+#endif
     }
     QGLViewer::mousePressEvent(e) ;
 }
@@ -283,8 +286,9 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
     {
         mCenter.lon -= (e->globalX() - mLastX) * mViewScale / width() ;
         mCenter.lat += (e->globalY() - mLastY) * mViewScale / width() ;
-
+#ifdef DEBUG
         std::cerr << "Current x=" << e->globalX() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->globalX() - mLastX << ", " << e->globalY() - mLastY << std::endl;
+#endif
 
         mLastX = e->globalX();
         mLastY = e->globalY();
