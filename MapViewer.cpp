@@ -18,6 +18,8 @@ MapViewer::MapViewer(QWidget *parent)
     mCurrentSlice_H = height();
 
     mExplicitDraw = true;
+    mMoving = false ;
+    mMovingSelected = false ;
 
     mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
     mCenter.lon = 0.0;
@@ -281,22 +283,24 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
 
 void MapViewer::mousePressEvent(QMouseEvent *e)
 {
-    if(e->button() == Qt::LeftButton)
-    {
-        mMoving = true ;
-        mLastX = e->globalX();
-        mLastY = e->globalY();
+	if(e->button() == Qt::LeftButton)
+	{
+		mMovingSelected = (e->modifiers() & Qt::ControlModifier);
+
+		mMoving = true ;
+		mLastX = e->globalX();
+		mLastY = e->globalY();
 #ifdef DEBUG
-        std::cerr << "Moving started current_pos = " << mLastX << "," << mLastY << std::endl;
+		std::cerr << "Moving started current_pos = " << mLastX << "," << mLastY << std::endl;
 #endif
-    }
-    QGLViewer::mousePressEvent(e) ;
+	}
+	QGLViewer::mousePressEvent(e) ;
 }
 
 void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
 {
-    longitude = (i/(float)width()-0.5) * mViewScale + mCenter.lon ;
-    latitude  = -(j/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
+    longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
+    latitude  =-(j/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
 
     std::cerr << longitude << " " << latitude << std::endl;
 }
@@ -305,6 +309,12 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 {
     if(mMoving)
     {
+        if(mMovingSelected)
+        {
+            std::cerr << "moving selected image" << std::endl;
+            return;
+        }
+
         mCenter.lon -= (e->globalX() - mLastX) * mViewScale / width() ;
         mCenter.lat += (e->globalY() - mLastY) * mViewScale / width() ;
 #ifdef DEBUG
