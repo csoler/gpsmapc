@@ -305,7 +305,7 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
 void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
 {
     longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
-    latitude  =-(j/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
+    latitude  = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
 #ifdef DEBUG
     std::cerr << longitude << " " << latitude << std::endl;
 #endif
@@ -350,7 +350,7 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
         // that could be accelerated using a KDtree
         for(int i=mImagesToDraw.size()-1;i>=0;--i)
             if(mImagesToDraw[i].top_left_corner.lon <= longitude && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
-            && mImagesToDraw[i].top_left_corner.lat >= latitude  && mImagesToDraw[i].top_left_corner.lat - mImagesToDraw[i].lon_width * aspect <= latitude )
+            && mImagesToDraw[i].top_left_corner.lat <= latitude  && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
             {
                 new_selection = mImagesToDraw[i].filename;
                 break;
