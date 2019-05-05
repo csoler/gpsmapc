@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QImage>
 #include "MapDB.h"
 
 class MapAccessor

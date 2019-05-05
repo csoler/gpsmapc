@@ -107,8 +107,6 @@ static void checkGLError(const std::string& place,uint32_t line)
 
 void MapViewer::draw()
 {
-    std::cerr << "Drawing..." << std::endl;
-
     if(mSliceUpdateNeeded && mExplicitDraw)
     {
         computeSlice();
@@ -145,13 +143,6 @@ void MapViewer::draw()
 	}
     else
 	{
-//        static GLuint tex_id =0;
-//        if(!tex_id)
-//        {
-//			glGenTextures(1,&tex_id);
-//            glBindTexture(GL_TEXTURE_2D,tex_id);
-//        }
-
 		// Here we use the graphics card for the texture mapping, so as to use the hardware to perform filtering.
         // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
         // method is only fod quick display purpose.
@@ -175,26 +166,16 @@ void MapViewer::draw()
             float image_lon_size = images_to_draw[i].lon_width;
             float image_lat_size = images_to_draw[i].lon_width * images_to_draw[i].H/(float)images_to_draw[i].W;
 
-            std::cerr << "  drawing texture " << images_to_draw[i].filename.toStdString() << std::endl;
-
             glDisable(GL_LIGHTING);
-            glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-            glPixelStorei(GL_PACK_ALIGNMENT ,1);
 
-            CHECK_GL_ERROR();
+			GLuint tex_id = getTextureId(images_to_draw[i].filename,images_to_draw[i]) ;
+
+            glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D,tex_id);
 
             glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S    , GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T    , GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
-
-			glEnable(GL_TEXTURE_2D);
-            glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,images_to_draw[i].W,images_to_draw[i].H,0,GL_RGB,GL_UNSIGNED_BYTE,images_to_draw[i].pixel_data);
-            //glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,128,128,0,GL_RGB,GL_FLOAT,mCurrentSlice_data);
-
+			glBindTexture(GL_TEXTURE_2D,tex_id);
             CHECK_GL_ERROR();
 
             glColor3f(1,1,1);
@@ -208,9 +189,9 @@ void MapViewer::draw()
             glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
 
             glEnd();
+			glDisable(GL_TEXTURE_2D);
 
             CHECK_GL_ERROR();
-			glDisable(GL_TEXTURE_2D);
 
             glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
@@ -224,6 +205,43 @@ void MapViewer::draw()
 		CHECK_GL_ERROR();
     }
 }
+
+GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor::ImageData& img_data)
+{
+	static std::map<QString,GLuint> ids ;
+
+	auto it = ids.find(texture_filename) ;
+
+	if(it == ids.end())
+	{
+		GLuint tex_id = 0;
+		glGenTextures(1,&tex_id);
+
+        ids[texture_filename] = tex_id ;
+
+		glBindTexture(GL_TEXTURE_2D,tex_id);
+		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+		glPixelStorei(GL_PACK_ALIGNMENT ,1);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S    , GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T    , GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
+
+		glEnable(GL_TEXTURE_2D);
+		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,img_data.W,img_data.H,0,GL_RGB,GL_UNSIGNED_BYTE,img_data.pixel_data);
+		//glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,128,128,0,GL_RGB,GL_FLOAT,mCurrentSlice_data);
+		glDisable(GL_TEXTURE_2D);
+
+		CHECK_GL_ERROR();
+
+        std::cerr << "Allocating new texture ID " << tex_id << " for texture " << texture_filename.toStdString() << std::endl;
+	}
+	else
+		return it->second;
+}
+
 
 void MapViewer::forceUpdate()
 {

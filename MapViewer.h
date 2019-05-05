@@ -1,4 +1,5 @@
 #include "MapDB.h"
+#include "MapAccessor.h"
 #include <QGLViewer/qglviewer.h>
 
 class MapAccessor;
@@ -20,6 +21,7 @@ protected:
 
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
+	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
