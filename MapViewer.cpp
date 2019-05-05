@@ -96,6 +96,15 @@ void MapViewer::resizeEvent(QResizeEvent *e)
     QGLViewer::resizeEvent(e);
 }
 
+static void checkGLError(const std::string& place,uint32_t line)
+{
+    GLuint e = 0 ;
+
+    while( 0 != (e=glGetError()))
+           std::cerr << "!!!!!!!!!!!! glGetError() returns code 0x" << std::hex << e << std::dec << " in " << place << ", line " << line << std::endl;
+}
+#define CHECK_GL_ERROR() { checkGLError(__PRETTY_FUNCTION__,__LINE__); }
+
 void MapViewer::draw()
 {
     std::cerr << "Drawing..." << std::endl;
@@ -136,6 +145,13 @@ void MapViewer::draw()
 	}
     else
 	{
+//        static GLuint tex_id =0;
+//        if(!tex_id)
+//        {
+//			glGenTextures(1,&tex_id);
+//            glBindTexture(GL_TEXTURE_2D,tex_id);
+//        }
+
 		// Here we use the graphics card for the texture mapping, so as to use the hardware to perform filtering.
         // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
         // method is only fod quick display purpose.
@@ -146,6 +162,14 @@ void MapViewer::draw()
 
         mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,images_to_draw);
 
+		glPixelTransferf(GL_RED_SCALE  ,1.0) ;
+		glPixelTransferf(GL_GREEN_SCALE,1.0) ;
+		glPixelTransferf(GL_BLUE_SCALE ,1.0) ;
+
+        glDisable(GL_DEPTH_TEST);
+
+		CHECK_GL_ERROR();
+
         for(uint32_t i=0;i<images_to_draw.size();++i)
         {
             float image_lon_size = images_to_draw[i].lon_width;
@@ -153,17 +177,30 @@ void MapViewer::draw()
 
             std::cerr << "  drawing texture " << images_to_draw[i].filename.toStdString() << std::endl;
 
-            glEnable(GL_TEXTURE);
+            glDisable(GL_LIGHTING);
             glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+            glPixelStorei(GL_PACK_ALIGNMENT ,1);
 
-            glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,images_to_draw[i].W,images_to_draw[i].H,0,GL_RGB,GL_UNSIGNED_BYTE,images_to_draw[i].pixel_data);
+            CHECK_GL_ERROR();
+
+            glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S    , GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T    , GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
+
+			glEnable(GL_TEXTURE_2D);
+            glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,images_to_draw[i].W,images_to_draw[i].H,0,GL_RGB,GL_UNSIGNED_BYTE,images_to_draw[i].pixel_data);
+            //glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,128,128,0,GL_RGB,GL_FLOAT,mCurrentSlice_data);
+
+            CHECK_GL_ERROR();
 
             glColor3f(1,1,1);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
             glBegin(GL_QUADS);
-
-
-
-
 
             glTexCoord2f(0.0,0.0); glVertex2f(0  ,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
             glTexCoord2f(1.0,0.0); glVertex2f(0.1,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
@@ -171,7 +208,20 @@ void MapViewer::draw()
             glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
 
             glEnd();
+
+            CHECK_GL_ERROR();
+			glDisable(GL_TEXTURE_2D);
+
+            glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0,0.0); glVertex2f(0  ,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f(0.1,0  );// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f(0.1,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon + image_lon_size, images_to_draw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,1.0); glVertex2f(0  ,0.1);// glVertex2f( images_to_draw[i].top_left_corner.lon                 , images_to_draw[i].top_left_corner.lat                  );
+            glEnd();
         }
+		CHECK_GL_ERROR();
     }
 }
 

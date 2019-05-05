@@ -31,6 +31,7 @@ class MapDB
         // For debugging and initialization purposes
 
         const std::map<QString,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
+        const QString& rootDirectory() const { return mRootDirectory; }
 
 	private:
 		bool init();

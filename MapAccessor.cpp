@@ -21,7 +21,7 @@ void MapAccessor::getImagesToDraw(const MapDB::GPSCoord& mBottomLeftViewCorner, 
         id.H = it->second.H;
         id.lon_width = it->second.scale;
         id.top_left_corner = it->second.top_left_corner;
-        id.filename = it->first ;
+        id.filename = mDb.rootDirectory() + "/" + it->first ;
         id.pixel_data = getPixelData(id.filename);
 
         images_to_draw.push_back(id);
