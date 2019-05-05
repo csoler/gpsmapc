@@ -40,6 +40,8 @@ protected:
 	bool mSliceUpdateNeeded ;
     bool mExplicitDraw;
     bool mMovingSelected;
+    bool mShowImagesBorder;
+
     int  mLastX ;
     int  mLastY ;
     bool mMoving ;

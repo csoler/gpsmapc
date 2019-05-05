@@ -20,6 +20,7 @@ MapViewer::MapViewer(QWidget *parent)
     mExplicitDraw = true;
     mMoving = false ;
     mMovingSelected = false ;
+    mShowImagesBorder = true;
 
     mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
     mCenter.lon = 0.0;
@@ -92,6 +93,10 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 		break;
 
     case Qt::Key_X: mExplicitDraw = !mExplicitDraw ;
+        			updateGL();
+
+    case Qt::Key_B: mShowImagesBorder = !mShowImagesBorder ;
+        			displayMessage("Toggled images borders");
         			updateGL();
         break;
     default:
@@ -213,14 +218,17 @@ void MapViewer::draw()
 				glColor3f(1.0,1.0,1.0);
 			}
 
-            glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+            if(mShowImagesBorder)
+			{
+				glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
-            glBegin(GL_QUADS);
-            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
-            glEnd();
+				glBegin(GL_QUADS);
+				glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+				glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
+				glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
+				glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
+				glEnd();
+			}
         }
 		CHECK_GL_ERROR();
     }
