@@ -17,10 +17,13 @@ MapViewer::MapViewer(QWidget *parent)
     mCurrentSlice_W = width();
     mCurrentSlice_H = height();
 
+    mCurrentImageX = -1;
+    mCurrentImageY = -1;
     mExplicitDraw = true;
     mMoving = false ;
     mMovingSelected = false ;
     mShowImagesBorder = true;
+    mDisplayDescriptor=0;
 
     mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
     mCenter.lon = 0.0;
@@ -94,10 +97,19 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 
     case Qt::Key_X: mExplicitDraw = !mExplicitDraw ;
         			updateGL();
+        break;
 
     case Qt::Key_B: mShowImagesBorder = !mShowImagesBorder ;
         			displayMessage("Toggled images borders");
         			updateGL();
+        break;
+
+	case Qt::Key_D: displayMessage("computing descriptors...");
+                    computeDescriptorsForCurrentImage();
+                    updateGL();
+
+	case Qt::Key_E: mDisplayDescriptor = (mDisplayDescriptor+1)%4;
+                    updateGL();
         break;
     default:
         QGLViewer::keyPressEvent(e);
@@ -229,6 +241,43 @@ void MapViewer::draw()
 				glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
 				glEnd();
 			}
+
+            // now draw file descriptors if any
+
+			glLineWidth(5.0);
+			static const int nb_pts = 50 ;
+			int H = mImagesToDraw[i].H;
+			float scale = mImagesToDraw[i].lon_width / mImagesToDraw[i].W;
+
+            for(uint32_t k=0;k<mImagesToDraw[i].descriptors.size();++k)
+            {
+                const MapRegistration::ImageDescriptor& desc(mImagesToDraw[i].descriptors[k]);
+				float radius = mImagesToDraw[i].descriptors[k].pixel_radius;
+
+                glColor3f(1.0,0.0,0.0);
+
+                glBegin(GL_LINE_LOOP) ;
+
+                for(int l=0;l<nb_pts;++l)
+					glVertex2f(mImagesToDraw[i].top_left_corner.lon + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts))*scale,
+                               mImagesToDraw[i].top_left_corner.lat + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts))*scale);
+
+                glEnd();
+            }
+
+            // also draw current descriptor mask around current point
+			glColor3f(0.7,1.0,0.2);
+
+			glBegin(GL_LINE_LOOP) ;
+
+			float radius = mCurrentDescriptor.pixel_radius;
+
+			for(int l=0;l<nb_pts;++l)
+					glVertex2f(mImagesToDraw[i].top_left_corner.lon + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts))*scale,
+                               mImagesToDraw[i].top_left_corner.lat + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts))*scale);
+
+			glEnd();
+			glLineWidth(1.0);
         }
 		CHECK_GL_ERROR();
     }
@@ -361,6 +410,40 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
             && mImagesToDraw[i].top_left_corner.lat <= latitude  && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
             {
                 new_selection = mImagesToDraw[i].filename;
+
+                if(mDisplayDescriptor > 0)
+				{
+					mCurrentImageX = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+					mCurrentImageY = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+
+					std::cerr << "Point " << mCurrentImageX << " " << mCurrentImageY << " ";
+					QImage image = mMA->getImageData(new_selection);
+
+					if(image.width()==0)
+					{
+						std::cerr << "Error: cannot load image" << std::endl;
+						break;
+					}
+
+                    switch(mDisplayDescriptor)
+                    {
+                    case 1: MapRegistration::computeDescriptor1(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
+                    case 2: MapRegistration::computeDescriptor2(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
+                    case 3: MapRegistration::computeDescriptor3(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
+                    default: break;
+                    }
+
+					std::cerr << "Descriptor: " ;
+					for(i=0;i<std::min((size_t)10,mCurrentDescriptor.data.size());++i)
+						std::cerr << mCurrentDescriptor.data[i] << " " ;
+					std::cerr << std::endl;
+				}
+                else
+                {
+                    mCurrentImageX = -1 ;
+                    mCurrentImageY = -1 ;
+                }
+				updateGL();
                 break;
             }
 
@@ -494,5 +577,11 @@ static void drawTextAtLocation(float tX,float tY,float tZ,const char* text,float
     glPopMatrix() ;
     glMatrixMode(GL_PROJECTION) ;
     glPopMatrix() ;
+}
+
+void MapViewer::computeDescriptorsForCurrentImage()
+{
+    if(! mSelectedImage.isNull())
+        mMA->recomputeDescriptors(mSelectedImage);
 }
 

@@ -4,6 +4,8 @@
 #include <vector>
 #include <QString>
 
+#include "MapRegistration.h"
+
 class QFile ;
 class QString ;
 
@@ -26,6 +28,8 @@ class MapDB
 			int W,H ;					// width/height of the image
 			float scale;				// length of the image in degrees of longitude
 			GPSCoord top_left_corner;	// lon/lat of the top-left corner of the image
+
+            std::vector<MapRegistration::ImageDescriptor> descriptors;	// images descriptors, used to match images together
 		};
 
         // For debugging and initialization purposes
@@ -34,6 +38,7 @@ class MapDB
         const QString& rootDirectory() const { return mRootDirectory; }
 
 		void moveImage(const QString& mSelectedImage,float delta_lon,float delta_lat);
+		void recomputeDescriptors(const QString& image_filename);
 
         void save();
 

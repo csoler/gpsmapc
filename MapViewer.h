@@ -23,6 +23,7 @@ protected:
 	void dragEnterEvent(QDragEnterEvent *event) override;
 	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
 	void computeRealCoordinates(int i,int j,float& longitude,float& latitude) const;
+	void computeDescriptorsForCurrentImage();
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
@@ -33,6 +34,8 @@ protected:
 
 	int mCurrentSlice_W ;
 	int mCurrentSlice_H ;
+    int mCurrentImageX;
+    int mCurrentImageY;
 
 	float *mCurrentSlice_data ;
 	float mViewScale ;				// width of the viewing window in degrees of longitude
@@ -42,6 +45,9 @@ protected:
     bool mMovingSelected;
     bool mShowImagesBorder;
 
+    MapRegistration::ImageDescriptor mCurrentDescriptor ;
+
+    int  mDisplayDescriptor;
     int  mLastX ;
     int  mLastY ;
     bool mMoving ;

@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "MapDB.h"
+#include "MapRegistration.h"
 
 std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c)
 {
@@ -241,8 +242,25 @@ void MapDB::save()
     std::cerr << "Map saved!" << std::endl;
 }
 
+void MapDB::recomputeDescriptors(const QString& image_filename)
+{
+    auto it = mImages.find(image_filename);
 
+    if(mImages.end() == it)
+        return ;
 
+    QImage image(mRootDirectory + "/" + image_filename);
+
+    if(image.width() != it->second.W || image.height() != it->second.H)
+    {
+        std::cerr << "Error: cannot load image data for " << image_filename.toStdString() << std::endl;
+        return;
+    }
+
+    std::cerr << "Computing descriptors for image " << image_filename.toStdString() << "..." << std::endl;
+
+    MapRegistration::findDescriptors(image.bits(),it->second.W,it->second.H,it->second.descriptors);
+}
 
 
 

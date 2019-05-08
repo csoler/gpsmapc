@@ -2,8 +2,15 @@ TEMPLATE = app
 CONFIG += qt uic
 QT = gui xml widgets opengl
 
-SOURCES = IGNMapper.cpp MapDB.cpp MapAccessor.cpp MapGUIWindow.cpp MapViewer.cpp
-HEADERS = MapDB.h MapAccessor.h MapGUIWindow.h MapViewer.h config.h
+QMAKE_CXXFLAGS *= -fopenmp
+LIBS *= -lgomp
+
+SOURCES = IGNMapper.cpp MapDB.cpp MapAccessor.cpp MapGUIWindow.cpp MapViewer.cpp \
+    MapExporter.cpp \
+    MapRegistration.cpp
+HEADERS = MapDB.h MapAccessor.h MapGUIWindow.h MapViewer.h config.h \
+    MapExporter.h \
+    MapRegistration.h
 
 FORMS =
 

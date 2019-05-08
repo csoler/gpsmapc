@@ -24,9 +24,15 @@ void MapAccessor::getImagesToDraw(MapDB::GPSCoord &mBottomLeftViewCorner, const 
         id.directory       = mDb.rootDirectory() ;
         id.filename        = it->first ;
         id.pixel_data      = getPixelData(id.directory + "/" + id.filename);
+        id.descriptors     = it->second.descriptors;
 
         images_to_draw.push_back(id);
     }
+}
+
+QImage MapAccessor::getImageData(const QString& image_filename)
+{
+    return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
 
 void MapAccessor::generateImage(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,float scale,MapDB::RegisteredImage& img_out,unsigned char *& pixels_out)
@@ -52,6 +58,11 @@ const unsigned char *MapAccessor::getPixelData(const QString& filename) const
 void MapAccessor::moveImage(const QString& image_filename,float delta_lon,float delta_lat)
 {
     mDb.moveImage(image_filename,delta_lon,delta_lat);
+}
+
+void MapAccessor::recomputeDescriptors(const QString& image_filename)
+{
+    mDb.recomputeDescriptors(image_filename);
 }
 
 void MapAccessor::saveMap()
