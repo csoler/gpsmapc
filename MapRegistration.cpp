@@ -1,5 +1,13 @@
 #include <math.h>
 
+#include "opencv_nonfree/xfeatures2d.hpp"
+#include "opencv_nonfree/nonfree.hpp"
+#include "opencv_nonfree/surf.hpp"
+
+#include "opencv2/core/core.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+
 #include "MaxHeap.h"
 #include "MapRegistration.h"
 
@@ -151,3 +159,25 @@ void  MapRegistration::findDescriptors(const unsigned char *data,int W,int H,std
         std::cerr << "Descriptor #" << i << ": variance=" << descriptor_queue[i].variance <<  " x=" << descriptor_queue[i].x << " y=" << descriptor_queue[i].y << std::endl;
     }
 }
+
+using namespace cv;
+using namespace cv::xfeatures2d;
+
+static void  findDescriptors(const std::string& image_filename,std::vector<MapRegistration::ImageDescriptor>& descriptors)
+{
+	Mat img = imread( image_filename.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+
+	if( !img.data )
+		throw std::runtime_error("Cannot reading image " + image_filename);
+
+	//-- Step 1: Detect the keypoints using SURF Detector
+	int minHessian = 400;
+
+	SURF_Impl detector(minHessian);
+
+	std::vector<KeyPoint> keypoints;
+
+	detector.detect( img, keypoints );
+}
+
+
