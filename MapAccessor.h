@@ -19,6 +19,9 @@ class MapAccessor
             QString filename;
         };
 
+        const MapDB::GPSCoord& topLeftCorner() const { return mDb.topLeftCorner() ; }
+        const MapDB::GPSCoord& bottomRightCorner() const { return mDb.bottomRightCorner() ; }
+
         void getImagesToDraw(MapDB::GPSCoord& mBottomLeftViewCorner,const MapDB::GPSCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
         QImage getImageData(const QString& image_filename);
 

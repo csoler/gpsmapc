@@ -1,3 +1,4 @@
+#include <values.h>
 #include <iostream>
 
 #include <QFile>
@@ -100,13 +101,13 @@ void MapDB::loadDB(const QString& source_directory)
 
     std::cerr << "Reading map \"" << mName.toStdString() << "\" creation time: " << QDateTime::fromSecsSinceEpoch(mCreationTime).toString().toStdString() << std::endl;
 
-    mTopLeft.lon = root.toElement().attribute("longitude_min","0.0").toFloat();
-    mTopLeft.lat = root.toElement().attribute("latitude_min","0.0").toFloat();
-    mBottomRight.lon = root.toElement().attribute("longitude_max","0.0").toFloat();
-    mBottomRight.lat = root.toElement().attribute("latitude_max","0.0").toFloat();
-
     mImages.clear();
     QDomNode ep = root.firstChild();
+
+    mTopLeft.lon     =  FLT_MAX;
+    mTopLeft.lat     = -FLT_MAX;
+    mBottomRight.lon = -FLT_MAX;
+    mBottomRight.lat =  FLT_MAX;
 
     while(!ep.isNull())
 	{
@@ -129,6 +130,11 @@ void MapDB::loadDB(const QString& source_directory)
 			image.top_left_corner.lon = e.attribute("CornerLon","0.0").toFloat();
 			image.top_left_corner.lat = e.attribute("CornerLat","0.0").toFloat();
 			image.scale = e.attribute("Scale","10000").toInt();
+
+            if(mTopLeft.lon > image.top_left_corner.lon) mTopLeft.lon = image.top_left_corner.lon;
+            if(mTopLeft.lat < image.top_left_corner.lat) mTopLeft.lat = image.top_left_corner.lat;
+            if(mBottomRight.lon < image.top_left_corner.lon+image.scale) mBottomRight.lon = image.top_left_corner.lon+image.scale;
+            if(mBottomRight.lat > image.top_left_corner.lat+image.scale*image.H/(float)image.W) mBottomRight.lat = image.top_left_corner.lat + image.scale*image.H/(float)image.W;
 
             mImages[filename] = image;
 		}
@@ -160,8 +166,7 @@ void MapDB::checkDirectory(const QString& source_directory)
                 image.W = img_data.width();
                 image.H = img_data.height();
                 image.scale = 10000 ;
-                image.top_left_corner.lon = 0.0 ;
-                image.top_left_corner.lat = 0.0 ;
+                image.top_left_corner = mTopLeft;
 
                 mImages[dir[i]] = image;
 
@@ -249,17 +254,17 @@ void MapDB::recomputeDescriptors(const QString& image_filename)
     if(mImages.end() == it)
         return ;
 
-    QImage image(mRootDirectory + "/" + image_filename);
-
-    if(image.width() != it->second.W || image.height() != it->second.H)
-    {
-        std::cerr << "Error: cannot load image data for " << image_filename.toStdString() << std::endl;
-        return;
-    }
+    //QImage image(mRootDirectory + "/" + image_filename);
+    //if(image.width() != it->second.W || image.height() != it->second.H)
+    //{
+    //    std::cerr << "Error: cannot load image data for " << image_filename.toStdString() << std::endl;
+    //    return;
+    //}
 
     std::cerr << "Computing descriptors for image " << image_filename.toStdString() << "..." << std::endl;
 
-    MapRegistration::findDescriptors(image.bits(),it->second.W,it->second.H,it->second.descriptors);
+    //MapRegistration::findDescriptors(image.bits(),it->second.W,it->second.H,it->second.descriptors);
+    MapRegistration::findDescriptors( (mRootDirectory+"/"+image_filename).toStdString(),it->second.descriptors);
 }
 
 

@@ -160,24 +160,35 @@ void  MapRegistration::findDescriptors(const unsigned char *data,int W,int H,std
     }
 }
 
-using namespace cv;
-using namespace cv::xfeatures2d;
-
-static void  findDescriptors(const std::string& image_filename,std::vector<MapRegistration::ImageDescriptor>& descriptors)
+void  MapRegistration::findDescriptors(const std::string& image_filename,std::vector<MapRegistration::ImageDescriptor>& descriptors)
 {
-	Mat img = imread( image_filename.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+    cv::Mat img = cv::imread( image_filename.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
 
 	if( !img.data )
 		throw std::runtime_error("Cannot reading image " + image_filename);
 
 	//-- Step 1: Detect the keypoints using SURF Detector
-	int minHessian = 400;
+    int minHessian = 30000;
 
-	SURF_Impl detector(minHessian);
+    cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
 
-	std::vector<KeyPoint> keypoints;
+    std::vector<cv::KeyPoint> keypoints;
 
 	detector.detect( img, keypoints );
+
+    descriptors.clear();
+
+    for(uint32_t i=0;i<keypoints.size();++i)
+    {
+        MapRegistration::ImageDescriptor desc ;
+
+        desc.x = keypoints[i].pt.x ;
+        desc.y = keypoints[i].pt.y ;
+        desc.pixel_radius = keypoints[i].size/2.0;
+        desc.variance = keypoints[i].response;
+
+        descriptors.push_back(desc);
+    }
 }
 
 

@@ -19,7 +19,7 @@ MapViewer::MapViewer(QWidget *parent)
 
     mCurrentImageX = -1;
     mCurrentImageY = -1;
-    mExplicitDraw = true;
+    mExplicitDraw = false;
     mMoving = false ;
     mMovingSelected = false ;
     mShowImagesBorder = true;
@@ -33,6 +33,11 @@ MapViewer::MapViewer(QWidget *parent)
 void MapViewer::setMapAccessor(MapAccessor *ma)
 {
     mMA = ma ;
+    mViewScale = (mMA->topLeftCorner().lon - mMA->bottomRightCorner().lon)/2.0 * 1.05;
+    mCenter.lon = 0.5*(mMA->topLeftCorner().lon + mMA->bottomRightCorner().lon);
+    mCenter.lat = 0.5*(mMA->topLeftCorner().lat + mMA->bottomRightCorner().lat);
+
+    std::cerr << "Loaded new accessor. Center is " << mCenter << " scale is " << mViewScale << std::endl;
     updateSlice();
 }
 
@@ -267,6 +272,9 @@ void MapViewer::draw()
 
             // also draw current descriptor mask around current point
 			glColor3f(0.7,1.0,0.2);
+
+            glEnable(GL_LINE_SMOOTH) ;
+            glBlendFunc(GL_ONE_MINUS_SRC_ALPHA,GL_SRC_ALPHA) ;
 
 			glBegin(GL_LINE_LOOP) ;
 

@@ -22,6 +22,7 @@ public:
 	};
 
     static void findDescriptors(const unsigned char *data,int W,int H,std::vector<ImageDescriptor>& descriptors);
+    static void findDescriptors(const std::string& image_filename, std::vector<MapRegistration::ImageDescriptor>& descriptors);
 
 	static bool  computeDescriptor1(const unsigned char *data,int W,int H,int i,int j,ImageDescriptor& descriptor);
 	static bool  computeDescriptor2(const unsigned char *data,int W,int H,int i,int j,ImageDescriptor& descriptor);

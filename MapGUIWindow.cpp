@@ -2,7 +2,6 @@
 
 #include "MapViewer.h"
 #include "MapGUIWindow.h"
-#include "ui_MapGUIWindow.h"
 
 MapGUIWindow::MapGUIWindow() : QMainWindow()
 {
