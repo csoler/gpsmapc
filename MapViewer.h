@@ -24,6 +24,7 @@ protected:
 	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
 	void computeRealCoordinates(int i,int j,float& longitude,float& latitude) const;
 	void computeDescriptorsForCurrentImage();
+	void computeRelatedTransform();
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
@@ -52,6 +53,8 @@ protected:
     int  mLastY ;
     bool mMoving ;
     QString mSelectedImage;
+    QString mPreviouslyComputedImage;
+    QString mLastComputedImage ;
 
     MapAccessor *mMA;
 	std::vector<MapAccessor::ImageData> mImagesToDraw;

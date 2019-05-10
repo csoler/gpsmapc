@@ -29,6 +29,7 @@ class MapAccessor
 
 		void moveImage(const QString& image_filename,float delta_lon,float delta_lat);
 		void recomputeDescriptors(const QString& image_filename);
+		QString fullPath(const QString& image_filename);
 
 		void saveMap();
 	private:

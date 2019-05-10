@@ -69,3 +69,8 @@ void MapAccessor::saveMap()
 {
 	mDb.save();
 }
+
+QString MapAccessor::fullPath(const QString& image_filename)
+{
+    return mDb.rootDirectory() + "/" + image_filename;
+}

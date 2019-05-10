@@ -26,8 +26,7 @@ UI_DIR = .ui
 LIBS *= -lglut -lGLU
 
 # openCV
-LIBS *= -lopencv_core -lopencv_imgproc  -lopencv_features2d  -lopencv_flann \
-        -lopencv_imgcodecs
+LIBS *= -lopencv_core -lopencv_imgproc  -lopencv_features2d  -lopencv_flann -lopencv_imgcodecs
 
 #-lopencv_highgui -lopencv_ml -lopencv_video -lopencv_objdetect
 #-lopencv_contrib -lopencv_legacy -lopencv_calib3d

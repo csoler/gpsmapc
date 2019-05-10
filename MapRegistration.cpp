@@ -29,6 +29,7 @@ float MapRegistration::interpolated_image_intensity(const unsigned char *data,in
     return ((1-di)*((1-dj)*d_00 + dj*d_01) + di*((1-dj)*d_10 + dj*d_11))/255.0 ;
 }
 
+#ifdef TO_REMOVE
 bool  MapRegistration::computeDescriptor1(const unsigned char *data,int W,int H,int i,int j,ImageDescriptor& descriptor)
 {
 	static const int max_size = 50 ; // size in pixels
@@ -135,6 +136,7 @@ bool  MapRegistration::computeDescriptor3(const unsigned char *data,int W,int H,
 
     return true;
 }
+
 void  MapRegistration::findDescriptors(const unsigned char *data,int W,int H,std::vector<ImageDescriptor>& descriptors)
 {
     MaxHeap<ImageDescriptor> descriptor_queue(30);
@@ -159,6 +161,7 @@ void  MapRegistration::findDescriptors(const unsigned char *data,int W,int H,std
         std::cerr << "Descriptor #" << i << ": variance=" << descriptor_queue[i].variance <<  " x=" << descriptor_queue[i].x << " y=" << descriptor_queue[i].y << std::endl;
     }
 }
+#endif
 
 void  MapRegistration::findDescriptors(const std::string& image_filename,std::vector<MapRegistration::ImageDescriptor>& descriptors)
 {
@@ -190,5 +193,103 @@ void  MapRegistration::findDescriptors(const std::string& image_filename,std::ve
         descriptors.push_back(desc);
     }
 }
+
+void MapRegistration::computeRelativeTransform(const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
+{
+	cv::Mat img1 = cv::imread( image_filename1.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+	if( !img1.data ) throw std::runtime_error("Cannot reading image " + image_filename1);
+
+	cv::Mat img2 = cv::imread( image_filename2.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+	if( !img2.data ) throw std::runtime_error("Cannot reading image " + image_filename2);
+
+    int minHessian = 30000;
+
+    cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
+
+    std::vector<cv::KeyPoint> keypoints1,keypoints2;
+    cv::Mat descriptors_1,descriptors_2;
+
+	detector.detectAndCompute( img1, cv::Mat(), keypoints1, descriptors_1 );
+	detector.detectAndCompute( img2, cv::Mat(), keypoints2, descriptors_2 );
+
+    //-- Step 2: Matching descriptor vectors using FLANN matcher
+    cv::FlannBasedMatcher matcher;
+    std::vector<cv::DMatch> matches;
+
+    matcher.match(descriptors_1, descriptors_2, matches);
+
+    double max_dist = 0; double min_dist = 100;
+
+    //-- Quick calculation of max and min distances between keypoints
+    for( int i = 0; i < descriptors_1.rows; i++ )
+    {
+        double dist = matches[i].distance;
+		if( dist < min_dist ) min_dist = dist;
+		if( dist > max_dist ) max_dist = dist;
+	}
+    printf("-- Max dist : %f \n", max_dist );
+    printf("-- Min dist : %f \n", min_dist );
+
+    //-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
+    //-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
+    //-- small)
+    //-- PS.- radiusMatch can also be used here.
+
+    std::vector<cv::Point2f> good_matches;
+
+    for( int i = 0; i<descriptors_1.rows; i++ )
+		if( matches[i].distance <= std::max(2*min_dist, 0.10) )
+        {
+            int i1 = matches[i].queryIdx ;
+            int i2 = matches[i].trainIdx ;
+
+            std::cerr << "Dist = " << matches[i].distance
+                      << " pt1: " << keypoints1[i1].pt.x << ", " << keypoints1[i1].pt.y
+                      << " pt2: " << keypoints2[i2].pt.x << ", " << keypoints2[i2].pt.y
+                      << " translation: " << keypoints2[i2].pt.x  - keypoints1[i1].pt.x
+                      << ", "             << keypoints2[i2].pt.y  - keypoints1[i1].pt.y
+                      << std::endl;
+
+			good_matches.push_back( cv::Point2f(keypoints2[i2].pt.x  - keypoints1[i1].pt.x, keypoints2[i2].pt.y  - keypoints1[i1].pt.y) );
+        }
+
+    std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
+
+    int clusterCount = 10;
+    cv::Mat labels;
+    int attempts = 5;
+    cv::Mat centers;
+
+    cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.0001), attempts, cv::KMEANS_PP_CENTERS, centers );
+
+    std::cerr << "Centers found: " << centers.rows << std::endl;
+
+	for(int i=0;i<centers.rows;++i)
+    {
+        std::cerr << "[" ;
+        for(int j=0;j<centers.cols;++j)
+            std::cerr << centers.at<float>(i,j) << " " ;
+
+        std::cerr << "]" << std::endl;
+    }
+
+    dx = centers.at<float>(0,0);
+    dy = centers.at<float>(0,1);
+
+//    std::cerr << "Labels found: " << labels.rows << std::endl;
+//
+//	for(int i=0;i<labels.rows;++i)
+//    {
+//        std::cerr << "[" ;
+//        for(int j=0;j<labels.cols;++j)
+//            std::cerr << labels.at<float>(i,j) << " " ;
+//
+//        std::cerr << "]" << std::endl;
+//    }
+
+}
+
+
+
 
 

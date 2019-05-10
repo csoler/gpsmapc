@@ -33,7 +33,7 @@ MapViewer::MapViewer(QWidget *parent)
 void MapViewer::setMapAccessor(MapAccessor *ma)
 {
     mMA = ma ;
-    mViewScale = (mMA->topLeftCorner().lon - mMA->bottomRightCorner().lon)/2.0 * 1.05;
+    mViewScale = (mMA->bottomRightCorner().lon - mMA->topLeftCorner().lon)/2.0 * 1.05;
     mCenter.lon = 0.5*(mMA->topLeftCorner().lon + mMA->bottomRightCorner().lon);
     mCenter.lat = 0.5*(mMA->topLeftCorner().lat + mMA->bottomRightCorner().lat);
 
@@ -112,6 +112,12 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 	case Qt::Key_D: displayMessage("computing descriptors...");
                     computeDescriptorsForCurrentImage();
                     updateGL();
+        break;
+
+	case Qt::Key_T: displayMessage("computing transform...");
+                    computeRelatedTransform();
+                    updateGL();
+		break;
 
 	case Qt::Key_E: mDisplayDescriptor = (mDisplayDescriptor+1)%4;
                     updateGL();
@@ -419,6 +425,7 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
             {
                 new_selection = mImagesToDraw[i].filename;
 
+#ifdef TO_REMOVE
                 if(mDisplayDescriptor > 0)
 				{
 					mCurrentImageX = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
@@ -451,6 +458,10 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
                     mCurrentImageX = -1 ;
                     mCurrentImageY = -1 ;
                 }
+#else
+				mCurrentImageX = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+				mCurrentImageY = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+#endif
 				updateGL();
                 break;
             }
@@ -587,8 +598,37 @@ static void drawTextAtLocation(float tX,float tY,float tZ,const char* text,float
     glPopMatrix() ;
 }
 
+void MapViewer::computeRelatedTransform()
+{
+    if(mLastComputedImage.isNull() || mPreviouslyComputedImage.isNull())
+    {
+        std::cerr << "Error: you need to compute descriptors for 2 images." << std::endl;
+        return ;
+    }
+
+    float dx,dy ;
+ 	MapRegistration::computeRelativeTransform(mMA->fullPath(mLastComputedImage).toStdString(),mMA->fullPath(mPreviouslyComputedImage).toStdString(),dx,dy);
+
+    // need to move the 2nd image at the right place
+
+#ifdef TODO
+	mMA->getImageParams(mImagesToDraw);
+
+    MapDB::GPSCoord corner_1 = mMA->getImageTopLeftCorner(mLastComputedImage) ;
+
+    MapDB::GPSCoord corner_2 ;
+    corner_2.lon = corner_1.lon + dx *
+
+	mMA->placeImage(mLastComputedImage,dx * mViewScale / width(),dy*mViewScale / width());
+#endif
+    updateGL();
+}
+
 void MapViewer::computeDescriptorsForCurrentImage()
 {
+    mPreviouslyComputedImage = mLastComputedImage ;
+    mLastComputedImage = mSelectedImage ;
+
     if(! mSelectedImage.isNull())
         mMA->recomputeDescriptors(mSelectedImage);
 }
