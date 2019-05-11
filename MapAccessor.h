@@ -26,10 +26,21 @@ class MapAccessor
         QImage getImageData(const QString& image_filename);
 		bool getImageParams(const QString& image_filename, MapDB::RegisteredImage &img);
 
-		void generateImage(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,float scale,MapDB::RegisteredImage& img_out,unsigned char *& pixels_out) ;
+        /*!
+         * \brief extractTile 	Extracts an image of size WxH pixels, that covers the given rectangle in GPS coords.
+         * \param top_left 		Top left corner of the region to extract
+         * \param bottom_right 	Bottom right corner of the region to extract
+         * \param W				Width of the output image
+         * \param H				Height of the output image
+         * \return
+         */
+		QImage extractTile(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,int W,int H) ;
 
 		void moveImage(const QString& image_filename,float delta_lon,float delta_lat);
 		void placeImage(const QString& image_filename,const MapDB::GPSCoord& new_corner);
+
+        // Returns the number of pixels per degree of longitude/latitude
+        float pixelsPerAngle() const ;
 
 		void recomputeDescriptors(const QString& image_filename);
 		QString fullPath(const QString& image_filename);

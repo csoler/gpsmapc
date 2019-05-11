@@ -40,10 +40,11 @@ QImage MapAccessor::getImageData(const QString& image_filename)
     return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
 
-void MapAccessor::generateImage(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,float scale,MapDB::RegisteredImage& img_out,unsigned char *& pixels_out)
+QImage MapAccessor::extractTile(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,int W,int H)
 {
     std::cerr << __PRETTY_FUNCTION__ << ": not implemented." << std::endl;
-    pixels_out = NULL ;
+
+    return QImage();
 }
 
 const unsigned char *MapAccessor::getPixelData(const QString& filename) const
@@ -85,6 +86,12 @@ void MapAccessor::placeImage(const QString& image_filename,const MapDB::GPSCoord
     return mDb.placeImage(image_filename,new_corner);
 }
 
+float MapAccessor::pixelsPerAngle() const
+{
+    // TODO
+#warning TODO
+    return 1.0;
+}
 
 
 
