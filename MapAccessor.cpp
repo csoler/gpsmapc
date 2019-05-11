@@ -30,6 +30,11 @@ void MapAccessor::getImagesToDraw(MapDB::GPSCoord &mBottomLeftViewCorner, const 
     }
 }
 
+bool MapAccessor::getImageParams(const QString& image_filename,MapDB::RegisteredImage& img)
+{
+    return mDb.getImageParams(image_filename,img) ;
+}
+
 QImage MapAccessor::getImageData(const QString& image_filename)
 {
     return QImage(mDb.rootDirectory() + "/" + image_filename);
@@ -74,3 +79,17 @@ QString MapAccessor::fullPath(const QString& image_filename)
 {
     return mDb.rootDirectory() + "/" + image_filename;
 }
+
+void MapAccessor::placeImage(const QString& image_filename,const MapDB::GPSCoord& new_corner)
+{
+    return mDb.placeImage(image_filename,new_corner);
+}
+
+
+
+
+
+
+
+
+

@@ -241,6 +241,21 @@ void MapDB::moveImage(const QString& filename,float delta_lon,float delta_lat)
     mMapChanged = true;
 }
 
+void MapDB::placeImage(const QString& image_filename,const GPSCoord& new_corner)
+{
+	auto it = mImages.find(image_filename) ;
+
+    if(it == mImages.end())
+    {
+        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << image_filename.toStdString() << std::endl;
+        return;
+    }
+
+    it->second.top_left_corner = new_corner;
+
+    mMapChanged = true;
+}
+
 void MapDB::save()
 {
 	saveDB(mRootDirectory);
@@ -267,6 +282,16 @@ void MapDB::recomputeDescriptors(const QString& image_filename)
     MapRegistration::findDescriptors( (mRootDirectory+"/"+image_filename).toStdString(),it->second.descriptors);
 }
 
+bool MapDB::getImageParams(const QString& image_filename,MapDB::RegisteredImage& img) const
+{
+	auto it = mImages.find(image_filename);
+
+    if(mImages.end() == it)
+        return false;
+
+    img = it->second;
+    return true;
+}
 
 
 

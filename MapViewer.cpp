@@ -122,6 +122,11 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 	case Qt::Key_E: mDisplayDescriptor = (mDisplayDescriptor+1)%4;
                     updateGL();
         break;
+
+	case Qt::Key_S: if(!mSelectedImage.isNull())
+            			mLastSelectedImage = mSelectedImage;
+                    updateGL();
+        break;
     default:
         QGLViewer::keyPressEvent(e);
     }
@@ -235,6 +240,11 @@ void MapViewer::draw()
 				glLineWidth(5.0);
 				glColor3f(1.0,0.7,0.2) ;
 			}
+			else if(mImagesToDraw[i].filename == mLastSelectedImage)
+            {
+				glLineWidth(5.0);
+				glColor3f(0.7,0.9,0.3) ;
+            }
 			else
 			{
 				glLineWidth(1.0);
@@ -600,35 +610,37 @@ static void drawTextAtLocation(float tX,float tY,float tZ,const char* text,float
 
 void MapViewer::computeRelatedTransform()
 {
-    if(mLastComputedImage.isNull() || mPreviouslyComputedImage.isNull())
+    if(mLastSelectedImage.isNull() || mSelectedImage.isNull())
     {
         std::cerr << "Error: you need to compute descriptors for 2 images." << std::endl;
         return ;
     }
 
     float dx,dy ;
- 	MapRegistration::computeRelativeTransform(mMA->fullPath(mLastComputedImage).toStdString(),mMA->fullPath(mPreviouslyComputedImage).toStdString(),dx,dy);
+
+    if(! MapRegistration::computeRelativeTransform(mMA->fullPath(mSelectedImage).toStdString(),mMA->fullPath(mLastSelectedImage).toStdString(),dx,dy))
+    {
+        std::cerr << "No valid transform found!" << std::endl;
+        return;
+    }
 
     // need to move the 2nd image at the right place
 
-#ifdef TODO
-	mMA->getImageParams(mImagesToDraw);
+    MapDB::RegisteredImage img1,img2;
 
-    MapDB::GPSCoord corner_1 = mMA->getImageTopLeftCorner(mLastComputedImage) ;
+	mMA->getImageParams(mSelectedImage,img1);
+	mMA->getImageParams(mLastSelectedImage,img2);
 
-    MapDB::GPSCoord corner_2 ;
-    corner_2.lon = corner_1.lon + dx *
+    MapDB::GPSCoord new_corner ;
+    new_corner.lon = img2.top_left_corner.lon + dx/img2.W*img2.scale ;
+    new_corner.lat = img2.top_left_corner.lat - dy/img2.W*img2.scale ;
 
-	mMA->placeImage(mLastComputedImage,dx * mViewScale / width(),dy*mViewScale / width());
-#endif
+	mMA->placeImage(mSelectedImage,new_corner);
     updateGL();
 }
 
 void MapViewer::computeDescriptorsForCurrentImage()
 {
-    mPreviouslyComputedImage = mLastComputedImage ;
-    mLastComputedImage = mSelectedImage ;
-
     if(! mSelectedImage.isNull())
         mMA->recomputeDescriptors(mSelectedImage);
 }

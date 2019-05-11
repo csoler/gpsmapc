@@ -53,8 +53,7 @@ protected:
     int  mLastY ;
     bool mMoving ;
     QString mSelectedImage;
-    QString mPreviouslyComputedImage;
-    QString mLastComputedImage ;
+    QString mLastSelectedImage ;
 
     MapAccessor *mMA;
 	std::vector<MapAccessor::ImageData> mImagesToDraw;

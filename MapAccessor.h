@@ -24,10 +24,13 @@ class MapAccessor
 
         void getImagesToDraw(MapDB::GPSCoord& mBottomLeftViewCorner,const MapDB::GPSCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
         QImage getImageData(const QString& image_filename);
+		bool getImageParams(const QString& image_filename, MapDB::RegisteredImage &img);
 
 		void generateImage(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,float scale,MapDB::RegisteredImage& img_out,unsigned char *& pixels_out) ;
 
 		void moveImage(const QString& image_filename,float delta_lon,float delta_lat);
+		void placeImage(const QString& image_filename,const MapDB::GPSCoord& new_corner);
+
 		void recomputeDescriptors(const QString& image_filename);
 		QString fullPath(const QString& image_filename);
 

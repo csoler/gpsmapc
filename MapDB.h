@@ -35,6 +35,7 @@ class MapDB
         // For debugging and initialization purposes
 
         const std::map<QString,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
+    	bool getImageParams(const QString& image_filename,MapDB::RegisteredImage& img) const;
 
         // accessor methods
 
@@ -44,6 +45,8 @@ class MapDB
         const GPSCoord& bottomRightCorner() const { return mBottomRight ; }
 
 		void moveImage(const QString& mSelectedImage,float delta_lon,float delta_lat);
+    	void placeImage(const QString& image_filename,const GPSCoord& new_corner);
+
 		void recomputeDescriptors(const QString& image_filename);
 
         void save();

@@ -194,7 +194,7 @@ void  MapRegistration::findDescriptors(const std::string& image_filename,std::ve
     }
 }
 
-void MapRegistration::computeRelativeTransform(const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
+bool MapRegistration::computeRelativeTransform(const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
 {
 	cv::Mat img1 = cv::imread( image_filename1.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
 	if( !img1.data ) throw std::runtime_error("Cannot reading image " + image_filename1);
@@ -240,53 +240,65 @@ void MapRegistration::computeRelativeTransform(const std::string& image_filename
     for( int i = 0; i<descriptors_1.rows; i++ )
 		if( matches[i].distance <= std::max(2*min_dist, 0.10) )
         {
-            int i1 = matches[i].queryIdx ;
-            int i2 = matches[i].trainIdx ;
-
-            std::cerr << "Dist = " << matches[i].distance
-                      << " pt1: " << keypoints1[i1].pt.x << ", " << keypoints1[i1].pt.y
-                      << " pt2: " << keypoints2[i2].pt.x << ", " << keypoints2[i2].pt.y
-                      << " translation: " << keypoints2[i2].pt.x  - keypoints1[i1].pt.x
-                      << ", "             << keypoints2[i2].pt.y  - keypoints1[i1].pt.y
-                      << std::endl;
+			int i1 = matches[i].queryIdx ;
+			int i2 = matches[i].trainIdx ;
 
 			good_matches.push_back( cv::Point2f(keypoints2[i2].pt.x  - keypoints1[i1].pt.x, keypoints2[i2].pt.y  - keypoints1[i1].pt.y) );
         }
 
     std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
 
-    int clusterCount = 10;
+    int clusterCount = 3;
     cv::Mat labels;
     int attempts = 5;
     cv::Mat centers;
 
-    cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.0001), attempts, cv::KMEANS_PP_CENTERS, centers );
+    cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.01), attempts, cv::KMEANS_PP_CENTERS, centers );
+
+    std::cerr << "Labels found: " << labels.rows << std::endl;
+
+	for(int i=0;i<labels.rows;++i)
+        std::cerr << "[" << labels.at<int>(i,0) << std::endl;
+
+    // We need to see which label gets the more votes.
+    int best_candidate=0;
+    std::vector<int> votes(clusterCount,0);
+
+    for(int i=0;i<(int)labels.rows;++i)
+        ++votes[labels.at<int>(i,0)];
+
+    int max_votes = 0;
 
     std::cerr << "Centers found: " << centers.rows << std::endl;
 
-	for(int i=0;i<centers.rows;++i)
+    for(int i=0;i<votes.size();++i)
     {
-        std::cerr << "[" ;
+        if(max_votes < votes[i])
+        {
+            max_votes = votes[i] ;
+            best_candidate = i ;
+        }
+        std::cerr << "Votes: " << votes[i] << " center " ;
+		std::cerr << "[" ;
         for(int j=0;j<centers.cols;++j)
             std::cerr << centers.at<float>(i,j) << " " ;
 
         std::cerr << "]" << std::endl;
     }
 
-    dx = centers.at<float>(0,0);
-    dy = centers.at<float>(0,1);
+ 	for(uint32_t i=0;i<good_matches.size();++i)
+		std::cerr << "Cluster " << labels.at<int>(i,0) << " translation: " << good_matches[i].x << ", " << good_matches[i].y << std::endl;
 
-//    std::cerr << "Labels found: " << labels.rows << std::endl;
-//
-//	for(int i=0;i<labels.rows;++i)
-//    {
-//        std::cerr << "[" ;
-//        for(int j=0;j<labels.cols;++j)
-//            std::cerr << labels.at<float>(i,j) << " " ;
-//
-//        std::cerr << "]" << std::endl;
-//    }
+    std::cerr << "Best candidate: " << best_candidate << std::endl;
 
+    dx = centers.at<float>(best_candidate,0);
+    dy = centers.at<float>(best_candidate,1);
+
+
+	if(fabs(dx) < 5.0 && fabs(dy) < 5.0)
+		return false;
+
+	return true;
 }
 
 
