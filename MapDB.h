@@ -23,6 +23,15 @@ class MapDB
 			float lat ;
 		};
 
+        struct ReferencePoint
+        {
+            ReferencePoint() : x(-1),y(-1),lat(0.0),lon(0.0) {}
+
+            int x,y;
+            float lat,lon;
+            QString filename;
+        };
+
 		struct RegisteredImage
 		{
 			int W,H ;					// width/height of the image
@@ -46,10 +55,14 @@ class MapDB
 
 		void moveImage(const QString& mSelectedImage,float delta_lon,float delta_lat);
     	void placeImage(const QString& image_filename,const GPSCoord& new_corner);
+		void setReferencePoint(const QString& image_name,int point_x,int point_y);
 
 		void recomputeDescriptors(const QString& image_filename);
 
         void save();
+
+        const ReferencePoint& getReferencePoint(int i) const { return i==0?mReferencePoint1:mReferencePoint2; }
+        int numberOfReferencePoints() const ;
 
 	private:
 		bool init();
@@ -69,6 +82,8 @@ class MapDB
 
 		GPSCoord mTopLeft ;
 		GPSCoord mBottomRight ;
+        ReferencePoint mReferencePoint1;
+        ReferencePoint mReferencePoint2;
 
         QString mName ;
         time_t  mCreationTime;

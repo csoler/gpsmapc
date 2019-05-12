@@ -304,6 +304,36 @@ void MapViewer::draw()
 			glLineWidth(1.0);
         }
 		CHECK_GL_ERROR();
+
+        for(int i=0;i<mMA->mapDB().numberOfReferencePoints();++i)
+        {
+            const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
+            MapDB::RegisteredImage img;
+
+            std::cerr << "Drawing ref point " << i << " " << p.x << " " << p.y << std::endl;
+			mMA->getImageParams(p.filename,img);
+
+            float scale = img.scale / img.W;
+			float radius = 100;
+            int nb_pts = 50;
+
+            glColor3f(0.1,0.3,0.9);
+            glLineWidth(3.0);
+            glBegin(GL_LINE_LOOP);
+
+			for(int l=0;l<nb_pts;++l)
+					glVertex2f(p.x*scale + img.top_left_corner.lon + radius*cos(2*M_PI*l/(float)nb_pts)*scale,
+                               (img.H-1-p.y)*scale + img.top_left_corner.lat + radius*sin(2*M_PI*l/(float)nb_pts)*scale);
+
+			glEnd();
+
+            glEnable(GL_POINT_SMOOTH);
+            glPointSize(10.0);
+
+            glBegin(GL_POINTS);
+			glVertex2f(p.x*scale + img.top_left_corner.lon, (img.H-1-p.y)*scale + img.top_left_corner.lat);
+            glEnd();
+        }
     }
 }
 
@@ -367,10 +397,45 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
     QGLViewer::mouseReleaseEvent(e);
 }
 
+void MapViewer::addReferencePoint(QMouseEvent *e)
+{
+	float latitude, longitude;
+	computeRealCoordinates(e->x(),e->y(),longitude,latitude);
+
+	QString selection ;
+	float aspect = height()/(float)width();
+    int selection_X=0,selection_Y=0;
+
+	// That could be accelerated using a KDtree
+
+	for(int i=mImagesToDraw.size()-1;i>=0;--i)
+		if(mImagesToDraw[i].top_left_corner.lon <= longitude && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
+		        && mImagesToDraw[i].top_left_corner.lat <= latitude  && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
+		{
+			selection = mImagesToDraw[i].filename;
+
+			selection_X = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+			selection_Y = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+		}
+
+    if(!selection.isNull())
+    {
+        std::cerr << "Setting new reference point in image " << selection.toStdString() << " at point " << selection_X << " " << selection_Y << std::endl;
+        mMA->setReferencePoint(selection,selection_X,selection_Y) ;
+        updateGL();
+    }
+}
+
 void MapViewer::mousePressEvent(QMouseEvent *e)
 {
 	if(e->button() == Qt::LeftButton)
 	{
+        if(e->modifiers() & Qt::ShiftModifier)
+        {
+            addReferencePoint(e) ;
+            return ;
+        }
+
 		mMovingSelected = (e->modifiers() & Qt::ControlModifier);
 
 		mMoving = true ;

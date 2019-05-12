@@ -14,16 +14,18 @@ public:
         float west_limit;
 
         float rotation ; 	// rotation angle of the zone
+
+        QString image_name;
     };
 
-    void writeToFile(const std::string& fname) const ;
+    void writeToFile(const QString &fname) const ;
 
     std::vector<LayerData> layers ;
 };
 
-void KmzFile::writeToFile(const std::string& fname) const
+void KmzFile::writeToFile(const QString& fname) const
 {
-    std::ofstream o(fname);
+    std::ofstream o(fname.toStdString().c_str());
 
     o << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>" << std::endl;
     o << "<kml xmlns=\"http://www.opengis.net/kml/2.2\">" << std::endl;
@@ -39,7 +41,7 @@ void KmzFile::writeToFile(const std::string& fname) const
     	o << "      <GroundOverlay>" << std::endl;
         o << "        <name>Layer " << i+1 << "</name>" << std::endl;
         o << "        <Icon>" << std::endl;
-        o << "          <href>files/image_data_" << output << ".jpg</href>" << std::endl;
+        o << "          <href>files/" << layers[i].image_name.toStdString() << "</href>" << std::endl;
         o << "          <drawOrder>0<drawOrder>" << std::endl;
         o << "        </Icon>" << std::endl;
         o << "        <LatLonBox>" << std::endl;
@@ -96,10 +98,16 @@ void MapExporter::exportMap(const MapDB::GPSCoord& top_left_corner,const MapDB::
 
 			QImage img = mA.extractTile(MapDB::GPSCoord(ld.north_limit,ld.west_limit), MapDB::GPSCoord(ld.south_limit,ld.east_limit),1024,1024);
 
-         	img.save(output_directory + "/" + "file_" + QString::number(n,10,'0')+".jpg","JPEG");
+            ld.image_name = "image_data_" + QString::number(n,10,'0')+".jpg";
+
+         	img.save(output_directory + "/" + ld.image_name,"JPEG");
+
+            kmzfile.layers.push_back(ld);
 		}
 
     // 3 - make the zip file
+
+    kmzfile.writeToFile(output_directory + "/doc.kml");
 }
 
 

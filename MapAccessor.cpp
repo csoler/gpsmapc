@@ -93,6 +93,10 @@ float MapAccessor::pixelsPerAngle() const
     return 1.0;
 }
 
+void MapAccessor::setReferencePoint(const QString& image_name,int point_x,int point_y)
+{
+    mDb.setReferencePoint(image_name,point_x,point_y);
+}
 
 
 

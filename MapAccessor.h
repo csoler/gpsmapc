@@ -26,6 +26,7 @@ class MapAccessor
         QImage getImageData(const QString& image_filename);
 		bool getImageParams(const QString& image_filename, MapDB::RegisteredImage &img);
 
+        void setReferencePoint(const QString& image_name, int point_x, int point_y) ;
         /*!
          * \brief extractTile 	Extracts an image of size WxH pixels, that covers the given rectangle in GPS coords.
          * \param top_left 		Top left corner of the region to extract
@@ -46,6 +47,9 @@ class MapAccessor
 		QString fullPath(const QString& image_filename);
 
 		void saveMap();
+
+        const MapDB& mapDB() const { return mDb ; }
+
 	private:
 		const unsigned char *getPixelData(const QString& filename) const;
 

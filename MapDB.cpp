@@ -138,6 +138,20 @@ void MapDB::loadDB(const QString& source_directory)
 
             mImages[filename] = image;
 		}
+
+        if(ep.toElement().tagName() == "ReferencePoint")
+        {
+            QDomElement e = ep.toElement();
+            ep = ep.nextSibling();
+
+            mReferencePoint2 = mReferencePoint1;
+
+            mReferencePoint1.filename = e.attribute("Filename",QString());
+            mReferencePoint1.x = e.attribute("ImageX","-1").toInt();
+            mReferencePoint1.y = e.attribute("ImageY","-1").toInt();
+            mReferencePoint1.lat = e.attribute("Latitude","0.0").toFloat();
+            mReferencePoint1.lon = e.attribute("Longitude","0.0").toFloat();
+        }
 	}
 
     // [...]
@@ -179,6 +193,19 @@ void MapDB::checkDirectory(const QString& source_directory)
     mMapChanged = false;
 }
 
+static QDomElement convertRefPointToDom(QDomDocument& doc,const MapDB::ReferencePoint& rp)
+{
+    QDomElement e = doc.createElement(QString("ReferencePoint"));
+
+    e.setAttribute("Filename",rp.filename);
+    e.setAttribute("ImageX",QString::number(rp.x));
+    e.setAttribute("ImageY",QString::number(rp.y));
+    e.setAttribute("Latitude",QString::number(rp.lat));
+    e.setAttribute("Longitude",QString::number(rp.lon));
+
+	return e;
+}
+
 void MapDB::saveDB(const QString& directory)
 {
     QString filename(directory + "/" + MAP_DEFINITION_FILE_NAME);
@@ -194,6 +221,9 @@ void MapDB::saveDB(const QString& directory)
 	e.setAttribute("longitude_max",mBottomRight.lon) ;
 	e.setAttribute("latitude_min",mTopLeft.lat) ;
 	e.setAttribute("latitude_max",mBottomRight.lat);
+
+    if(!mReferencePoint1.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint1));
+    if(!mReferencePoint2.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint2));
 
     for(auto it(mImages.begin());it!=mImages.end();++it)
 	{
@@ -292,6 +322,32 @@ bool MapDB::getImageParams(const QString& image_filename,MapDB::RegisteredImage&
     img = it->second;
     return true;
 }
+
+void MapDB::setReferencePoint(const QString& image_name,int point_x,int point_y)
+{
+    mReferencePoint2 = mReferencePoint1;
+
+    mReferencePoint1.filename = image_name ;
+    mReferencePoint1.x = point_x ;
+    mReferencePoint1.y = point_y ;
+    mReferencePoint1.lat = 0 ;
+    mReferencePoint1.lon = 0 ;
+}
+
+int MapDB::numberOfReferencePoints() const
+{
+    if(mReferencePoint1.filename.isNull())
+        return 0;
+
+    if(mReferencePoint2.filename.isNull())
+        return 1;
+
+    return 2;
+}
+
+
+
+
 
 
 

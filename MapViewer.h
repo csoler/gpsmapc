@@ -25,6 +25,7 @@ protected:
 	void computeRealCoordinates(int i,int j,float& longitude,float& latitude) const;
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
+	void addReferencePoint(QMouseEvent *e);
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;
