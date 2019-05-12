@@ -8,12 +8,11 @@
 
 int main(int argc,char *argv[])
 {
+    glutInit(&argc,argv);
 	QApplication IGNMapperApp(argc,argv);
 
 	MapGUIWindow map_gui_win;
 	map_gui_win.show();
-
-    glutInit(&argc,argv);
 
     // now create the map
 

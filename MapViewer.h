@@ -26,6 +26,7 @@ protected:
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
 	void addReferencePoint(QMouseEvent *e);
+	bool computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename);
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;

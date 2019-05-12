@@ -1,5 +1,6 @@
 #include <GL/glut.h>
 #include <QMimeData>
+#include <QToolTip>
 
 #include "MapAccessor.h"
 #include "MapViewer.h"
@@ -57,6 +58,86 @@ void MapViewer::dragEnterEvent(QDragEnterEvent *event)
 	else
 		event->ignore();
 }
+static void StrokeText(const char *text)
+{
+    glLineWidth(1.5);
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+    glEnable(GL_LINE_SMOOTH);
+
+    for(const char* p = text; *p; ++p)
+        glutStrokeCharacter(GLUT_STROKE_ROMAN, *p);
+
+    glDisable(GL_BLEND);
+    glDisable(GL_LINE_SMOOTH);
+    glLineWidth(1.0);
+}
+
+static void drawTextAtLocation(float tX,float tY,float tZ,const char* text,float aspect=1.0f,float scale=1.0f)
+{
+    const float ox = 0.01 ;
+    const float oy = 0.0 ;
+    const float text_height = 0.04 ;
+
+    GLdouble modl[16] ;
+    GLdouble proj[16] ;
+    GLint viewport[4] ;
+
+    glGetDoublev(GL_MODELVIEW_MATRIX,modl) ;
+    glGetDoublev(GL_PROJECTION_MATRIX,proj) ;
+    glGetIntegerv(GL_VIEWPORT,viewport) ;
+
+    GLdouble wx,wy,wz ;
+    gluProject(tX,tY,tZ,modl,proj,viewport,&wx,&wy,&wz) ;
+
+    glMatrixMode(GL_PROJECTION) ;
+    glPushMatrix() ;
+    glLoadIdentity() ;
+    glOrtho(0,1,0,aspect,-1,1) ;
+
+    glMatrixMode(GL_MODELVIEW) ;
+    glPushMatrix() ;
+    glDisable(GL_DEPTH_TEST) ;
+
+    const char *p = text ;
+    int n=0 ;
+
+    char *buff = new char[1+strlen(text)] ;
+
+    while(true)
+    {
+        const char *pp = p ;
+        int i=0 ;
+
+        while((*pp != '\n')&&(*pp != 0))
+        {
+            buff[i++] = *pp ;
+            pp++ ;
+        }
+
+        glLoadIdentity() ;
+        glTranslatef(wx/(float)viewport[2]+ox,(wy/(float)viewport[3]+oy)*aspect-n*text_height,0.0) ;
+        glScalef(0.00021*scale,0.0002*scale,0.0003*scale) ;
+
+        buff[i] = 0 ;
+        StrokeText(buff) ;
+
+        if(*pp != 0)
+            pp++ ;
+        else
+            break ;
+
+        p = pp ;
+    }
+
+    delete[] buff ;
+    glMatrixMode(GL_MODELVIEW) ;
+    glPopMatrix() ;
+    glMatrixMode(GL_PROJECTION) ;
+    glPopMatrix() ;
+}
+
 
 // void MapViewer::dragLeaveEvent(QDragLeaveEvent *event)
 // {
@@ -310,7 +391,6 @@ void MapViewer::draw()
             const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
             MapDB::RegisteredImage img;
 
-            std::cerr << "Drawing ref point " << i << " " << p.x << " " << p.y << std::endl;
 			mMA->getImageParams(p.filename,img);
 
             float scale = img.scale / img.W;
@@ -334,6 +414,7 @@ void MapViewer::draw()
 			glVertex2f(p.x*scale + img.top_left_corner.lon, (img.H-1-p.y)*scale + img.top_left_corner.lat);
             glEnd();
         }
+		CHECK_GL_ERROR();
     }
 }
 
@@ -397,31 +478,54 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
     QGLViewer::mouseReleaseEvent(e);
 }
 
-void MapViewer::addReferencePoint(QMouseEvent *e)
+bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename)
 {
 	float latitude, longitude;
-	computeRealCoordinates(e->x(),e->y(),longitude,latitude);
+	computeRealCoordinates(px,py,longitude,latitude);
 
 	QString selection ;
 	float aspect = height()/(float)width();
-    int selection_X=0,selection_Y=0;
 
 	// That could be accelerated using a KDtree
 
 	for(int i=mImagesToDraw.size()-1;i>=0;--i)
-		if(mImagesToDraw[i].top_left_corner.lon <= longitude && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
-		        && mImagesToDraw[i].top_left_corner.lat <= latitude  && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
+		if(	       mImagesToDraw[i].top_left_corner.lon <= longitude
+                && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
+		        && mImagesToDraw[i].top_left_corner.lat <= latitude
+                && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
 		{
-			selection = mImagesToDraw[i].filename;
+			image_filename = mImagesToDraw[i].filename;
 
-			selection_X = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
-			selection_Y = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+			img_x = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+			img_y = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].H;
+
+            return true;
 		}
+
+    return false;
+}
+
+void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
+{
+    longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
+    latitude  = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
+#ifdef DEBUG
+    std::cerr << longitude << " " << latitude << std::endl;
+#endif
+}
+
+void MapViewer::addReferencePoint(QMouseEvent *e)
+{
+    int x,y;
+    QString selection;
+
+    if(!computeImagePixelAtScreenPosition(e->x(),e->y(),x,y,selection))
+        return ;
 
     if(!selection.isNull())
     {
-        std::cerr << "Setting new reference point in image " << selection.toStdString() << " at point " << selection_X << " " << selection_Y << std::endl;
-        mMA->setReferencePoint(selection,selection_X,selection_Y) ;
+        std::cerr << "Setting new reference point in image " << selection.toStdString() << " at point " << x << " " << y << std::endl;
+        mMA->setReferencePoint(selection,x,y) ;
         updateGL();
     }
 }
@@ -439,22 +543,13 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
 		mMovingSelected = (e->modifiers() & Qt::ControlModifier);
 
 		mMoving = true ;
-		mLastX = e->globalX();
-		mLastY = e->globalY();
+		mLastX = e->x();
+		mLastY = e->y();
 #ifdef DEBUG
 		std::cerr << "Moving started current_pos = " << mLastX << "," << mLastY << std::endl;
 #endif
 	}
 	QGLViewer::mousePressEvent(e) ;
-}
-
-void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
-{
-    longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
-    latitude  = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
-#ifdef DEBUG
-    std::cerr << longitude << " " << latitude << std::endl;
-#endif
 }
 
 void MapViewer::mouseMoveEvent(QMouseEvent *e)
@@ -463,83 +558,46 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
     {
         if(mMovingSelected)
         {
-        	float delta_lon = - (e->globalX() - mLastX) * mViewScale / width() ;
-        	float delta_lat =   (e->globalY() - mLastY) * mViewScale / width() ;
+        	float delta_lon = - (e->x() - mLastX) * mViewScale / width() ;
+        	float delta_lat =   (e->y() - mLastY) * mViewScale / width() ;
 
             mMA->moveImage(mSelectedImage,-delta_lon,-delta_lat);
 
-			mLastX = e->globalX();
-			mLastY = e->globalY();
+			mLastX = e->x();
+			mLastY = e->y();
 
             updateGL();
             return;
         }
 
-        mCenter.lon -= (e->globalX() - mLastX) * mViewScale / width() ;
-        mCenter.lat += (e->globalY() - mLastY) * mViewScale / width() ;
+        mCenter.lon -= (e->x() - mLastX) * mViewScale / width() ;
+        mCenter.lat += (e->y() - mLastY) * mViewScale / width() ;
 #ifdef DEBUG
-        std::cerr << "Current x=" << e->globalX() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->globalX() - mLastX << ", " << e->globalY() - mLastY << std::endl;
+        std::cerr << "Current x=" << e->x() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->x() - mLastX << ", " << e->y() - mLastY << std::endl;
 #endif
 
-        mLastX = e->globalX();
-        mLastY = e->globalY();
+        mLastX = e->x();
+        mLastY = e->y();
+
         updateGL() ;
     }
     else // enter image selection mode
     {
-        float latitude, longitude;
-        computeRealCoordinates(e->x(),e->y(),longitude,latitude);
-
         QString new_selection ;
-        float aspect = height()/(float)width();
+        int new_x,new_y;
 
-        // that could be accelerated using a KDtree
-        for(int i=mImagesToDraw.size()-1;i>=0;--i)
-            if(mImagesToDraw[i].top_left_corner.lon <= longitude && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
-            && mImagesToDraw[i].top_left_corner.lat <= latitude  && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
-            {
-                new_selection = mImagesToDraw[i].filename;
+        if(computeImagePixelAtScreenPosition(e->x(),e->y(),new_x,new_y,new_selection))
+        {
+			mCurrentImageX = new_x;
+			mCurrentImageY = new_y;
+		}
 
-#ifdef TO_REMOVE
-                if(mDisplayDescriptor > 0)
-				{
-					mCurrentImageX = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
-					mCurrentImageY = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
+        QString displayText ;
+        displayText += QString::number(e->x()) + "," +QString::number(e->y());
+        displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
 
-					std::cerr << "Point " << mCurrentImageX << " " << mCurrentImageY << " ";
-					QImage image = mMA->getImageData(new_selection);
-
-					if(image.width()==0)
-					{
-						std::cerr << "Error: cannot load image" << std::endl;
-						break;
-					}
-
-                    switch(mDisplayDescriptor)
-                    {
-                    case 1: MapRegistration::computeDescriptor1(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
-                    case 2: MapRegistration::computeDescriptor2(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
-                    case 3: MapRegistration::computeDescriptor3(image.bits(),image.width(),image.height(),mCurrentImageX,mCurrentImageY,mCurrentDescriptor); break;
-                    default: break;
-                    }
-
-					std::cerr << "Descriptor: " ;
-					for(i=0;i<std::min((size_t)10,mCurrentDescriptor.data.size());++i)
-						std::cerr << mCurrentDescriptor.data[i] << " " ;
-					std::cerr << std::endl;
-				}
-                else
-                {
-                    mCurrentImageX = -1 ;
-                    mCurrentImageY = -1 ;
-                }
-#else
-				mCurrentImageX = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
-				mCurrentImageY = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
-#endif
-				updateGL();
-                break;
-            }
+		//QToolTip::showText(QCursor::pos() + QPoint(20,20),displayText);
+		QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
 
         if(new_selection != mSelectedImage)
         {
@@ -591,86 +649,6 @@ void MapViewer::computeSlice()
 		}
 
 	mSliceUpdateNeeded = false ;
-}
-
-static void StrokeText(const char *text)
-{
-    glLineWidth(1.5);
-
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-    glEnable(GL_LINE_SMOOTH);
-
-    for(const char* p = text; *p; ++p)
-        glutStrokeCharacter(GLUT_STROKE_ROMAN, *p);
-
-    glDisable(GL_BLEND);
-    glDisable(GL_LINE_SMOOTH);
-    glLineWidth(1.0);
-}
-
-static void drawTextAtLocation(float tX,float tY,float tZ,const char* text,float aspect=1.0f,float scale=1.0f)
-{
-    const float ox = 0.01 ;
-    const float oy = 0.0 ;
-    const float text_height = 0.04 ;
-
-    GLdouble modl[16] ;
-    GLdouble proj[16] ;
-    GLint viewport[4] ;
-
-    glGetDoublev(GL_MODELVIEW_MATRIX,modl) ;
-    glGetDoublev(GL_PROJECTION_MATRIX,proj) ;
-    glGetIntegerv(GL_VIEWPORT,viewport) ;
-
-    GLdouble wx,wy,wz ;
-    gluProject(tX,tY,tZ,modl,proj,viewport,&wx,&wy,&wz) ;
-
-    glMatrixMode(GL_PROJECTION) ;
-    glPushMatrix() ;
-    glLoadIdentity() ;
-    glOrtho(0,1,0,aspect,-1,1) ;
-
-    glMatrixMode(GL_MODELVIEW) ;
-    glPushMatrix() ;
-    glDisable(GL_DEPTH_TEST) ;
-
-    const char *p = text ;
-    int n=0 ;
-
-    char *buff = new char[1+strlen(text)] ;
-
-    while(true)
-    {
-        const char *pp = p ;
-        int i=0 ;
-
-        while((*pp != '\n')&&(*pp != 0))
-        {
-            buff[i++] = *pp ;
-            pp++ ;
-        }
-
-        glLoadIdentity() ;
-        glTranslatef(wx/(float)viewport[2]+ox,(wy/(float)viewport[3]+oy)*aspect-n*text_height,0.0) ;
-        glScalef(0.00021*scale,0.0002*scale,0.0003*scale) ;
-
-        buff[i] = 0 ;
-        StrokeText(buff) ;
-
-        if(*pp != 0)
-            pp++ ;
-        else
-            break ;
-
-        p = pp ;
-    }
-
-    delete[] buff ;
-    glMatrixMode(GL_MODELVIEW) ;
-    glPopMatrix() ;
-    glMatrixMode(GL_PROJECTION) ;
-    glPopMatrix() ;
 }
 
 void MapViewer::computeRelatedTransform()
