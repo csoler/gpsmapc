@@ -19,6 +19,7 @@ public:
 
     static void findDescriptors(const std::string& image_filename, std::vector<MapRegistration::ImageDescriptor>& descriptors);
  	static bool computeRelativeTransform(const std::string& image_filename1, const std::string& image_filename2, float &dx, float &dy);
+	static bool computeAllImagesPositions(const std::vector<std::string>& image_filenames,std::vector<std::pair<float,float> >& top_left_corners);
 
 private:
 	static float interpolated_image_intensity(const unsigned char *data, int W, int H, float i, float j);

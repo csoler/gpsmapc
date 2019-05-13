@@ -25,6 +25,7 @@ protected:
 	void screenCoordinatesToImageSpaceCoordinates(int i, int j, float& view_x, float& view_y) const;
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
+	void computeAllPositions();
 	void addReferencePoint(QMouseEvent *e);
 	bool computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename);
 

@@ -190,6 +190,11 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
         			updateGL();
         break;
 
+	case Qt::Key_P: displayMessage("computing all positions...");
+                    computeAllPositions();
+                    updateGL();
+        break;
+
 	case Qt::Key_D: displayMessage("computing descriptors...");
                     computeDescriptorsForCurrentImage();
                     updateGL();
@@ -585,17 +590,18 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
         int new_x,new_y;
 
         if(computeImagePixelAtScreenPosition(e->x(),e->y(),new_x,new_y,new_selection))
-        {
+		{
 			mCurrentImageX = new_x;
 			mCurrentImageY = new_y;
+
+			QString displayText ;
+			displayText += QString::number(e->x()) + "," +QString::number(e->y());
+			displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
+
+			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
 		}
 
-        QString displayText ;
-        displayText += QString::number(e->x()) + "," +QString::number(e->y());
-        displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
-
 		//QToolTip::showText(QCursor::pos() + QPoint(20,20),displayText);
-		QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
 
         if(new_selection != mSelectedImage)
         {
@@ -677,6 +683,31 @@ void MapViewer::computeRelatedTransform()
     new_corner.y = img2.top_left_corner.y - dy;
 
 	mMA->placeImage(mSelectedImage,new_corner);
+    updateGL();
+}
+
+void MapViewer::computeAllPositions()
+{
+    std::vector<std::pair<float,float> > coords ;
+    std::vector<std::string> images_full_paths ;
+
+    auto images_map = mMA->mapDB().getFullListOfImages();
+
+    for(auto it(images_map.begin());it!=images_map.end();++it)
+    	images_full_paths.push_back(mMA->fullPath(it->first).toStdString());
+
+	if(! MapRegistration::computeAllImagesPositions(images_full_paths,coords))
+    {
+        std::cerr << "No global transform found!" << std::endl;
+        return;
+    }
+
+    // now move all images at the right place
+
+    int i=0;
+    for(auto it(images_map.begin());it!=images_map.end();++it,++i)
+		mMA->placeImage(it->first,MapDB::ImageSpaceCoord(coords[i].first,coords[i].second));
+
     updateGL();
 }
 

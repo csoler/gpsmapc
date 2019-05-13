@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include "MapDB.h"
+
 #include "opencv_nonfree/xfeatures2d.hpp"
 #include "opencv_nonfree/nonfree.hpp"
 #include "opencv_nonfree/surf.hpp"
@@ -172,6 +174,168 @@ bool MapRegistration::computeRelativeTransform(const std::string& image_filename
 
 	return true;
 }
+
+static bool computeTransform(const std::vector<cv::KeyPoint>& keypoints1,const std::vector<cv::KeyPoint>& keypoints2,const cv::Mat& descriptors_1,const cv::Mat& descriptors_2,float& dx,float& dy)
+{
+	//-- Step 2: Matching descriptor vectors using FLANN matcher
+	cv::FlannBasedMatcher matcher;
+	std::vector<cv::DMatch> matches;
+
+	matcher.match(descriptors_1, descriptors_2, matches);
+
+	double max_dist = 0; double min_dist = 100;
+
+	//-- Quick calculation of max and min distances between keypoints
+	for( int i = 0; i < descriptors_1.rows; i++ )
+	{
+		double dist = matches[i].distance;
+		if( dist < min_dist ) min_dist = dist;
+		if( dist > max_dist ) max_dist = dist;
+	}
+	printf("-- Max dist : %f \n", max_dist );
+	printf("-- Min dist : %f \n", min_dist );
+
+	//-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
+	//-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
+	//-- small)
+	//-- PS.- radiusMatch can also be used here.
+
+	std::vector<cv::Point2f> good_matches;
+
+	for( int i = 0; i<descriptors_1.rows; i++ )
+	{
+		float delta_x,delta_y ;
+
+		if( matches[i].distance <= std::max(2*min_dist, 0.10) )
+		{
+			int i1 = matches[i].queryIdx ;
+			int i2 = matches[i].trainIdx ;
+
+			good_matches.push_back( cv::Point2f(keypoints2[i2].pt.x  - keypoints1[i1].pt.x, keypoints2[i2].pt.y  - keypoints1[i1].pt.y) );
+		}
+	}
+
+	// Now perform k-means clustering to find the transformation clusters.
+
+	std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
+
+	int clusterCount = 3;
+	cv::Mat labels;
+	int attempts = 5;
+	cv::Mat centers;
+
+	cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.01), attempts, cv::KMEANS_PP_CENTERS, centers );
+
+	std::cerr << "Labels found: " << labels.rows << std::endl;
+
+	for(int i=0;i<labels.rows;++i)
+		std::cerr << "[" << labels.at<int>(i,0) << std::endl;
+
+	// Look for which label gets the more votes.
+
+	int best_candidate=0;
+	std::vector<int> votes(clusterCount,0);
+
+	for(int i=0;i<(int)labels.rows;++i)
+		++votes[labels.at<int>(i,0)];
+
+	int max_votes = 0;
+
+	std::cerr << "Centers found: " << centers.rows << std::endl;
+
+	for(int i=0;i<votes.size();++i)
+	{
+		if(max_votes < votes[i])
+		{
+			max_votes = votes[i] ;
+			best_candidate = i ;
+		}
+		std::cerr << "Votes: " << votes[i] << " center " ;
+		std::cerr << "[" ;
+		for(int j=0;j<centers.cols;++j)
+			std::cerr << centers.at<float>(i,j) << " " ;
+
+		std::cerr << "]" << std::endl;
+	}
+
+	for(uint32_t i=0;i<good_matches.size();++i)
+		std::cerr << "Cluster " << labels.at<int>(i,0) << " translation: " << good_matches[i].x << ", " << good_matches[i].y << std::endl;
+
+	std::cerr << "Best candidate: " << best_candidate << std::endl;
+
+	dx = centers.at<float>(best_candidate,0);
+	dy = centers.at<float>(best_candidate,1);
+
+	// TODO: filter the cluster content to prune the worst elements.
+
+	// Return the candidate
+
+	if(fabs(dx) < 5.0 && fabs(dy) < 5.0)
+		return false;
+
+	return true;
+}
+bool MapRegistration::computeAllImagesPositions(const std::vector<std::string>& image_filenames,std::vector<std::pair<float,float> >& top_left_corners)
+{
+    if(image_filenames.empty())
+        return false ;
+
+    std::vector<std::vector<cv::KeyPoint> >keypoints(image_filenames.size());
+    std::vector<cv::Mat> descriptors(image_filenames.size());
+
+    // compute descriptors for all images
+
+    for(uint32_t i=0;i<image_filenames.size();++i)
+    {
+        std::cerr << "  computing keypoints for " << image_filenames[i] << std::endl;
+
+		cv::Mat img = cv::imread( image_filenames[i].c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+
+		if( !img.data ) throw std::runtime_error("Cannot reading image " + image_filenames[i]);
+
+		int minHessian = 30000;
+		cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
+
+		detector.detectAndCompute( img, cv::Mat(), keypoints[i], descriptors[i] );
+    }
+
+    // now go through each image and try to match it to at least one image with known position
+
+    std::vector<bool> has_coords(image_filenames.size(),false);
+
+    top_left_corners.clear();
+    top_left_corners.resize(image_filenames.size(),std::make_pair(0.0,0.0));
+
+    has_coords[0] = true;
+
+    while(true)
+    {
+        bool finished = true ;
+
+        for(uint32_t i=1;i<image_filenames.size();++i)
+            if(!has_coords[i])
+			{
+				// try to match to one of the previous images
+                float delta_x,delta_y;
+
+				for(uint32_t j=0;j<i;++j)
+					if(has_coords[j] && computeTransform(keypoints[j],keypoints[i],descriptors[j],descriptors[i],delta_x,delta_y))
+					{
+                        std::cerr << "Found new coordinates for image " << i << " w.r.t. image " << i << ": delta=" << delta_x << ", " << delta_y << std::endl;
+						top_left_corners[i] = std::make_pair(top_left_corners[j].first + delta_x, top_left_corners[j].second - delta_y);
+						has_coords[i] = true ;
+						break;
+					}
+
+                if(!has_coords[i])
+                    finished = false;
+			}
+
+        if(finished)
+            break;
+    }
+}
+
 
 
 
