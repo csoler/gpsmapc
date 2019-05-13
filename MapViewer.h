@@ -22,7 +22,7 @@ protected:
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
 	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
-	void computeRealCoordinates(int i,int j,float& longitude,float& latitude) const;
+	void screenCoordinatesToImageSpaceCoordinates(int i, int j, float& view_x, float& view_y) const;
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
 	void addReferencePoint(QMouseEvent *e);
@@ -60,7 +60,7 @@ protected:
     MapAccessor *mMA;
 	std::vector<MapAccessor::ImageData> mImagesToDraw;
 
-    MapDB::GPSCoord mCenter;
+    MapDB::ImageSpaceCoord mCenter;
 };
 
 

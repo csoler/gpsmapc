@@ -3,7 +3,7 @@
 
 #include "MapAccessor.h"
 
-void MapAccessor::getImagesToDraw(MapDB::GPSCoord &mBottomLeftViewCorner, const MapDB::GPSCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
+void MapAccessor::getImagesToDraw(MapDB::ImageSpaceCoord& mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
 {
     // For now, just dont be subtle: return all known images.
     // To do:
@@ -19,7 +19,6 @@ void MapAccessor::getImagesToDraw(MapDB::GPSCoord &mBottomLeftViewCorner, const 
 
         id.W               = it->second.W;
         id.H               = it->second.H;
-        id.lon_width       = it->second.scale;
         id.top_left_corner = it->second.top_left_corner;
         id.directory       = mDb.rootDirectory() ;
         id.filename        = it->first ;
@@ -40,7 +39,7 @@ QImage MapAccessor::getImageData(const QString& image_filename)
     return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
 
-QImage MapAccessor::extractTile(const MapDB::GPSCoord& top_left,const MapDB::GPSCoord& bottom_right,int W,int H)
+QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord &top_left, const MapDB::ImageSpaceCoord &bottom_right, int W, int H)
 {
     std::cerr << __PRETTY_FUNCTION__ << ": not implemented." << std::endl;
 
@@ -81,7 +80,7 @@ QString MapAccessor::fullPath(const QString& image_filename)
     return mDb.rootDirectory() + "/" + image_filename;
 }
 
-void MapAccessor::placeImage(const QString& image_filename,const MapDB::GPSCoord& new_corner)
+void MapAccessor::placeImage(const QString& image_filename,const MapDB::ImageSpaceCoord& new_corner)
 {
     return mDb.placeImage(image_filename,new_corner);
 }

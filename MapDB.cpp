@@ -10,10 +10,8 @@
 #include "MapDB.h"
 #include "MapRegistration.h"
 
-std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c)
-{
-    return o << "(" << c.lon << "," << c.lat << ")" ;
-}
+std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c) { return o << "(" << c.lon << "," << c.lat << ")" ; }
+std::ostream& operator<<(std::ostream& o, const MapDB::ImageSpaceCoord& c) { return o << "(" << c.x << "," << c.y << ")" ; }
 
 MapDB::MapDB(const QString& directory_name)
     : mRootDirectory(directory_name)
@@ -38,9 +36,15 @@ bool MapDB::init()
 {
     try
     {
-		loadDB(mRootDirectory);
+		mTopLeft.x     =  FLT_MAX;
+		mTopLeft.y     =  FLT_MAX;
+		mBottomRight.x = -FLT_MAX;
+		mBottomRight.y = -FLT_MAX;
 
+		loadDB(mRootDirectory);
         checkDirectory(mRootDirectory) ;
+
+		std::cerr << "Database read. Top left corner: " << mTopLeft << ", Bottom right corner: " << mBottomRight << std::endl;
 
         if(mMapChanged)
             saveDB(mRootDirectory);
@@ -52,6 +56,16 @@ bool MapDB::init()
     }
     return true;
 }
+
+void MapDB::includeImage(const MapDB::ImageSpaceCoord& top_left_corner,int W,int H)
+{
+	if(mTopLeft.x > top_left_corner.x) mTopLeft.x = top_left_corner.x;
+	if(mTopLeft.y > top_left_corner.y) mTopLeft.y = top_left_corner.y;
+
+	if(mBottomRight.x < top_left_corner.x+W) mBottomRight.x = top_left_corner.x+W;
+	if(mBottomRight.y < top_left_corner.y+H) mBottomRight.y = top_left_corner.y+H;
+}
+
 
 // DB file structure:
 //
@@ -104,11 +118,6 @@ void MapDB::loadDB(const QString& source_directory)
     mImages.clear();
     QDomNode ep = root.firstChild();
 
-    mTopLeft.lon     =  FLT_MAX;
-    mTopLeft.lat     = -FLT_MAX;
-    mBottomRight.lon = -FLT_MAX;
-    mBottomRight.lat =  FLT_MAX;
-
     while(!ep.isNull())
 	{
         if(ep.toElement().tagName() == "Image")
@@ -127,14 +136,10 @@ void MapDB::loadDB(const QString& source_directory)
 
 			image.W = e.attribute("Width","0").toInt();
 			image.H = e.attribute("Height","0").toInt();
-			image.top_left_corner.lon = e.attribute("CornerLon","0.0").toFloat();
-			image.top_left_corner.lat = e.attribute("CornerLat","0.0").toFloat();
-			image.scale = e.attribute("Scale","10000").toInt();
+			image.top_left_corner.x = e.attribute("TopLeftImageSpaceX","0.0").toFloat();
+			image.top_left_corner.y = e.attribute("TopLeftImageSpaceY","0.0").toFloat();
 
-            if(mTopLeft.lon > image.top_left_corner.lon) mTopLeft.lon = image.top_left_corner.lon;
-            if(mTopLeft.lat < image.top_left_corner.lat) mTopLeft.lat = image.top_left_corner.lat;
-            if(mBottomRight.lon < image.top_left_corner.lon+image.scale) mBottomRight.lon = image.top_left_corner.lon+image.scale;
-            if(mBottomRight.lat > image.top_left_corner.lat+image.scale*image.H/(float)image.W) mBottomRight.lat = image.top_left_corner.lat + image.scale*image.H/(float)image.W;
+            includeImage(image.top_left_corner,image.W,image.H) ;
 
             mImages[filename] = image;
 		}
@@ -179,11 +184,11 @@ void MapDB::checkDirectory(const QString& source_directory)
                 RegisteredImage image ;
                 image.W = img_data.width();
                 image.H = img_data.height();
-                image.scale = 10000 ;
-                image.top_left_corner = mTopLeft;
+                image.top_left_corner = MapDB::ImageSpaceCoord(0.0,0.0);
 
                 mImages[dir[i]] = image;
 
+                includeImage(image.top_left_corner,image.W,image.H);
                 mMapChanged = true;
             }
             else
@@ -217,10 +222,10 @@ void MapDB::saveDB(const QString& directory)
 	QDomElement e = doc.createElement(QString("Map")) ;
 
 	e.setAttribute("creation_time",qulonglong(time(NULL)));
-	e.setAttribute("longitude_min",mTopLeft.lon) ;
-	e.setAttribute("longitude_max",mBottomRight.lon) ;
-	e.setAttribute("latitude_min",mTopLeft.lat) ;
-	e.setAttribute("latitude_max",mBottomRight.lat);
+	e.setAttribute("longitude_min",mTopLeft.x) ;
+	e.setAttribute("longitude_max",mBottomRight.x) ;
+	e.setAttribute("latitude_min",mTopLeft.y) ;
+	e.setAttribute("latitude_max",mBottomRight.y);
 
     if(!mReferencePoint1.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint1));
     if(!mReferencePoint2.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint2));
@@ -232,9 +237,8 @@ void MapDB::saveDB(const QString& directory)
 		ep.setAttribute("Filename",it->first);
 		ep.setAttribute("Width",it->second.W);
 		ep.setAttribute("Height",it->second.H);
-		ep.setAttribute("CornerLon",it->second.top_left_corner.lon);
-		ep.setAttribute("CornerLat",it->second.top_left_corner.lat);
-		ep.setAttribute("Scale",it->second.scale);
+		ep.setAttribute("TopLeftImageSpaceX",it->second.top_left_corner.x);
+		ep.setAttribute("TopLeftImageSpaceY",it->second.top_left_corner.y);
 
 		e.appendChild(ep);
 	}
@@ -255,7 +259,7 @@ void MapDB::saveDB(const QString& directory)
     mMapChanged = false ;
 }
 
-void MapDB::moveImage(const QString& filename,float delta_lon,float delta_lat)
+void MapDB::moveImage(const QString& filename,float delta_is_x,float delta_is_y)
 {
     auto it = mImages.find(filename) ;
 
@@ -265,13 +269,13 @@ void MapDB::moveImage(const QString& filename,float delta_lon,float delta_lat)
         return;
     }
 
-    it->second.top_left_corner.lon += delta_lon;
-    it->second.top_left_corner.lat += delta_lat;
+    it->second.top_left_corner.x += delta_is_x;
+    it->second.top_left_corner.y += delta_is_y;
 
     mMapChanged = true;
 }
 
-void MapDB::placeImage(const QString& image_filename,const GPSCoord& new_corner)
+void MapDB::placeImage(const QString& image_filename, const ImageSpaceCoord &new_corner)
 {
 	auto it = mImages.find(image_filename) ;
 

@@ -23,6 +23,15 @@ class MapDB
 			float lat ;
 		};
 
+        struct ImageSpaceCoord
+        {
+            ImageSpaceCoord() : x(0.0f),y(0.0f) {}
+            ImageSpaceCoord(float _x,float _y) : x(_x),y(_y) {}
+
+            float x;
+            float y;
+        };
+
         struct ReferencePoint
         {
             ReferencePoint() : x(-1),y(-1),lat(0.0),lon(0.0) {}
@@ -34,9 +43,8 @@ class MapDB
 
 		struct RegisteredImage
 		{
-			int W,H ;					// width/height of the image
-			float scale;				// length of the image in degrees of longitude
-			GPSCoord top_left_corner;	// lon/lat of the top-left corner of the image
+			int W,H ;							// width/height of the image
+			ImageSpaceCoord top_left_corner;	// coordinates of the top-left corner of the image
 
             std::vector<MapRegistration::ImageDescriptor> descriptors;	// images descriptors, used to match images together
 		};
@@ -50,11 +58,11 @@ class MapDB
 
         const QString& rootDirectory() const { return mRootDirectory; }
 
-        const GPSCoord& topLeftCorner() const { return mTopLeft ; }
-        const GPSCoord& bottomRightCorner() const { return mBottomRight ; }
+        const ImageSpaceCoord& topLeftCorner() const { return mTopLeft ; }
+        const ImageSpaceCoord& bottomRightCorner() const { return mBottomRight ; }
 
-		void moveImage(const QString& mSelectedImage,float delta_lon,float delta_lat);
-    	void placeImage(const QString& image_filename,const GPSCoord& new_corner);
+		void moveImage(const QString& mSelectedImage, float delta_is_x, float delta_is_y);
+    	void placeImage(const QString& image_filename,const ImageSpaceCoord& new_corner);
 		void setReferencePoint(const QString& image_name,int point_x,int point_y);
 
 		void recomputeDescriptors(const QString& image_filename);
@@ -70,6 +78,7 @@ class MapDB
 		void saveDB(const QString& source_directory);
 		void createEmptyMap(QFile& map_file);
         void checkDirectory(const QString& source_directory) ;
+		void includeImage(const MapDB::ImageSpaceCoord& top_left_corner,int W,int H);
 
 		QString mRootDirectory ;
 
@@ -80,8 +89,9 @@ class MapDB
 
 		std::map<QString,MapDB::RegisteredImage> mImages ;
 
-		GPSCoord mTopLeft ;
-		GPSCoord mBottomRight ;
+		ImageSpaceCoord mTopLeft ;
+		ImageSpaceCoord mBottomRight ;
+
         ReferencePoint mReferencePoint1;
         ReferencePoint mReferencePoint2;
 
@@ -91,3 +101,4 @@ class MapDB
 };
 
 std::ostream& operator<<(std::ostream& o, const MapDB::GPSCoord& c);
+std::ostream& operator<<(std::ostream& o, const MapDB::ImageSpaceCoord& c);

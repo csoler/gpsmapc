@@ -1,5 +1,6 @@
 #include <fstream>
 
+#include "MapDB.h"
 #include "config.h"
 #include "MapExporter.h"
 
@@ -60,7 +61,7 @@ void KmzFile::writeToFile(const QString& fname) const
     o.close();
 }
 
-void MapExporter::exportMap(const MapDB::GPSCoord& top_left_corner,const MapDB::GPSCoord& bottom_right_corner,const QString& output_directory)
+void MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const MapDB::ImageSpaceCoord& bottom_right_corner,const QString& output_directory)
 {
     std::cerr << "Exporting map to Kmz file. Top left: " << top_left_corner << ", bottom right: " << bottom_right_corner << std::endl;
 
@@ -70,8 +71,8 @@ void MapExporter::exportMap(const MapDB::GPSCoord& top_left_corner,const MapDB::
 
     KmzFile kmzfile ;
 
-    uint32_t total_map_W = (bottom_right_corner.lon - top_left_corner.lon) * mA.pixelsPerAngle();
-    uint32_t total_map_H = (bottom_right_corner.lat - top_left_corner.lat) * mA.pixelsPerAngle();
+    uint32_t total_map_W = (bottom_right_corner.x - top_left_corner.x) * mA.pixelsPerAngle();
+    uint32_t total_map_H = (bottom_right_corner.y - top_left_corner.y) * mA.pixelsPerAngle();
 
     int n_tiles_x = (total_map_W + 1024)/1024;
     int n_tiles_y = (total_map_H + 1024)/1024;
@@ -89,14 +90,14 @@ void MapExporter::exportMap(const MapDB::GPSCoord& top_left_corner,const MapDB::
 		{
 			KmzFile::LayerData ld ;
 
-			ld.east_limit  = top_left_corner.lon +  i    * tile_angular_size;
-			ld.west_limit  = top_left_corner.lon + (i+1) * tile_angular_size;
-			ld.north_limit = top_left_corner.lat +  j    * tile_angular_size;	// limits of the zone
-			ld.south_limit = top_left_corner.lat + (j+1) * tile_angular_size;
+			ld.east_limit  = top_left_corner.x +  i    * tile_angular_size;
+			ld.west_limit  = top_left_corner.x + (i+1) * tile_angular_size;
+			ld.north_limit = top_left_corner.y +  j    * tile_angular_size;	// limits of the zone
+			ld.south_limit = top_left_corner.y + (j+1) * tile_angular_size;
 
 			ld.rotation = 0.0; 	// rotation angle of the zone
 
-			QImage img = mA.extractTile(MapDB::GPSCoord(ld.north_limit,ld.west_limit), MapDB::GPSCoord(ld.south_limit,ld.east_limit),1024,1024);
+			QImage img = mA.extractTile(MapDB::ImageSpaceCoord(ld.north_limit,ld.west_limit), MapDB::ImageSpaceCoord(ld.south_limit,ld.east_limit),1024,1024);
 
             ld.image_name = "image_data_" + QString::number(n,10,'0')+".jpg";
 

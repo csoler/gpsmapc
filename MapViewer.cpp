@@ -27,16 +27,16 @@ MapViewer::MapViewer(QWidget *parent)
     mDisplayDescriptor=0;
 
     mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
-    mCenter.lon = 0.0;
-    mCenter.lat = 0.0;
+    mCenter.x = 0.0;
+    mCenter.y = 0.0;
 }
 
 void MapViewer::setMapAccessor(MapAccessor *ma)
 {
     mMA = ma ;
-    mViewScale = (mMA->bottomRightCorner().lon - mMA->topLeftCorner().lon)/2.0 * 1.05;
-    mCenter.lon = 0.5*(mMA->topLeftCorner().lon + mMA->bottomRightCorner().lon);
-    mCenter.lat = 0.5*(mMA->topLeftCorner().lat + mMA->bottomRightCorner().lat);
+    mViewScale = (mMA->bottomRightCorner().x - mMA->topLeftCorner().y)/2.0 * 1.05;
+    mCenter.x = 0.5*(mMA->topLeftCorner().x + mMA->bottomRightCorner().x);
+    mCenter.y = 0.5*(mMA->topLeftCorner().y + mMA->bottomRightCorner().y);
 
     std::cerr << "Loaded new accessor. Center is " << mCenter << " scale is " << mViewScale << std::endl;
     updateSlice();
@@ -250,7 +250,7 @@ void MapViewer::draw()
 
     float aspect_ratio = height() / (float)width() ;
 
-    glOrtho(mCenter.lon - mViewScale/2.0,mCenter.lon + mViewScale/2.0,mCenter.lat - mViewScale/2.0*aspect_ratio,mCenter.lat + mViewScale/2.0*aspect_ratio,1,-1) ;
+    glOrtho(mCenter.x - mViewScale/2.0,mCenter.x + mViewScale/2.0,mCenter.y - mViewScale/2.0*aspect_ratio,mCenter.y + mViewScale/2.0*aspect_ratio,1,-1) ;
 
     if(mExplicitDraw)
 	{
@@ -271,8 +271,8 @@ void MapViewer::draw()
         // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
         // method is only fod quick display purpose.
 
-        MapDB::GPSCoord bottomLeftViewCorner(  mCenter.lon - mViewScale/2.0, mCenter.lat + mViewScale/2.0*aspect_ratio );
-        MapDB::GPSCoord topRightViewCorner  (  mCenter.lon + mViewScale/2.0, mCenter.lat - mViewScale/2.0*aspect_ratio );
+        MapDB::ImageSpaceCoord bottomLeftViewCorner(  mCenter.x - mViewScale/2.0, mCenter.y + mViewScale/2.0*aspect_ratio );
+        MapDB::ImageSpaceCoord topRightViewCorner  (  mCenter.x + mViewScale/2.0, mCenter.y - mViewScale/2.0*aspect_ratio );
 
         mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,mImagesToDraw);
 
@@ -286,8 +286,8 @@ void MapViewer::draw()
 
         for(uint32_t i=0;i<mImagesToDraw.size();++i)
         {
-            float image_lon_size = mImagesToDraw[i].lon_width;
-            float image_lat_size = mImagesToDraw[i].lon_width * mImagesToDraw[i].H/(float)mImagesToDraw[i].W;
+            float image_lon_size = mImagesToDraw[i].W;
+            float image_lat_size = mImagesToDraw[i].H;
 
             glDisable(GL_LIGHTING);
 
@@ -306,10 +306,10 @@ void MapViewer::draw()
 
             glBegin(GL_QUADS);
 
-            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y                  );
 
             glEnd();
 			glDisable(GL_TEXTURE_2D);
@@ -337,10 +337,10 @@ void MapViewer::draw()
 				glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
 				glBegin(GL_QUADS);
-				glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-				glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat + image_lat_size );
-				glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon + image_lon_size, mImagesToDraw[i].top_left_corner.lat                  );
-				glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.lon                 , mImagesToDraw[i].top_left_corner.lat                  );
+				glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y + image_lat_size );
+				glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y + image_lat_size );
+				glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y                  );
+				glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y                  );
 				glEnd();
 			}
 
@@ -349,7 +349,6 @@ void MapViewer::draw()
 			glLineWidth(5.0);
 			static const int nb_pts = 50 ;
 			int H = mImagesToDraw[i].H;
-			float scale = mImagesToDraw[i].lon_width / mImagesToDraw[i].W;
 
             for(uint32_t k=0;k<mImagesToDraw[i].descriptors.size();++k)
             {
@@ -361,8 +360,8 @@ void MapViewer::draw()
                 glBegin(GL_LINE_LOOP) ;
 
                 for(int l=0;l<nb_pts;++l)
-					glVertex2f(mImagesToDraw[i].top_left_corner.lon + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts))*scale,
-                               mImagesToDraw[i].top_left_corner.lat + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts))*scale);
+					glVertex2f(mImagesToDraw[i].top_left_corner.x + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts)),
+                               mImagesToDraw[i].top_left_corner.y + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts)));
 
                 glEnd();
             }
@@ -378,8 +377,8 @@ void MapViewer::draw()
 			float radius = mCurrentDescriptor.pixel_radius;
 
 			for(int l=0;l<nb_pts;++l)
-					glVertex2f(mImagesToDraw[i].top_left_corner.lon + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts))*scale,
-                               mImagesToDraw[i].top_left_corner.lat + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts))*scale);
+					glVertex2f(mImagesToDraw[i].top_left_corner.x + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts)),
+                               mImagesToDraw[i].top_left_corner.y + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts)));
 
 			glEnd();
 			glLineWidth(1.0);
@@ -393,7 +392,6 @@ void MapViewer::draw()
 
 			mMA->getImageParams(p.filename,img);
 
-            float scale = img.scale / img.W;
 			float radius = 100;
             int nb_pts = 50;
 
@@ -402,8 +400,8 @@ void MapViewer::draw()
             glBegin(GL_LINE_LOOP);
 
 			for(int l=0;l<nb_pts;++l)
-					glVertex2f(p.x*scale + img.top_left_corner.lon + radius*cos(2*M_PI*l/(float)nb_pts)*scale,
-                               (img.H-1-p.y)*scale + img.top_left_corner.lat + radius*sin(2*M_PI*l/(float)nb_pts)*scale);
+					glVertex2f(p.x + img.top_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
+                              (img.H-1-p.y) + img.top_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
 
 			glEnd();
 
@@ -411,7 +409,7 @@ void MapViewer::draw()
             glPointSize(10.0);
 
             glBegin(GL_POINTS);
-			glVertex2f(p.x*scale + img.top_left_corner.lon, (img.H-1-p.y)*scale + img.top_left_corner.lat);
+			glVertex2f(p.x + img.top_left_corner.x, (img.H-1-p.y) + img.top_left_corner.y);
             glEnd();
         }
 		CHECK_GL_ERROR();
@@ -480,8 +478,8 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
 
 bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename)
 {
-	float latitude, longitude;
-	computeRealCoordinates(px,py,longitude,latitude);
+	float is_y,is_x;
+	screenCoordinatesToImageSpaceCoordinates(px,py,is_x,is_y);
 
 	QString selection ;
 	float aspect = height()/(float)width();
@@ -489,15 +487,15 @@ bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& 
 	// That could be accelerated using a KDtree
 
 	for(int i=mImagesToDraw.size()-1;i>=0;--i)
-		if(	       mImagesToDraw[i].top_left_corner.lon <= longitude
-                && mImagesToDraw[i].top_left_corner.lon + mImagesToDraw[i].lon_width >= longitude
-		        && mImagesToDraw[i].top_left_corner.lat <= latitude
-                && mImagesToDraw[i].top_left_corner.lat + mImagesToDraw[i].lon_width * aspect >= latitude )
+		if(	       mImagesToDraw[i].top_left_corner.x                      <= is_x
+                && mImagesToDraw[i].top_left_corner.x + mImagesToDraw[i].W >= is_x
+		        && mImagesToDraw[i].top_left_corner.y                      <= is_y
+                && mImagesToDraw[i].top_left_corner.y + mImagesToDraw[i].H >= is_y )
 		{
 			image_filename = mImagesToDraw[i].filename;
 
-			img_x = (longitude - mImagesToDraw[i].top_left_corner.lon)/mImagesToDraw[i].lon_width*mImagesToDraw[i].W;
-			img_y = mImagesToDraw[i].H - 1 - (latitude - mImagesToDraw[i].top_left_corner.lat)/mImagesToDraw[i].lon_width*mImagesToDraw[i].H;
+			img_x = is_x - mImagesToDraw[i].top_left_corner.x;
+			img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].top_left_corner.y);
 
             return true;
 		}
@@ -505,12 +503,12 @@ bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& 
     return false;
 }
 
-void MapViewer::computeRealCoordinates(int i,int j,float& longitude,float& latitude) const
+void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,float& is_x,float& is_y) const
 {
-    longitude = (i/(float)width() -0.5) * mViewScale + mCenter.lon ;
-    latitude  = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.lat ;
+    is_x = (i/(float)width() -0.5) * mViewScale + mCenter.x ;
+    is_y = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.y ;
 #ifdef DEBUG
-    std::cerr << longitude << " " << latitude << std::endl;
+    std::cerr << is_x << " " << is_y << std::endl;
 #endif
 }
 
@@ -570,8 +568,8 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
             return;
         }
 
-        mCenter.lon -= (e->x() - mLastX) * mViewScale / width() ;
-        mCenter.lat += (e->y() - mLastY) * mViewScale / width() ;
+        mCenter.x -= (e->x() - mLastX) * mViewScale / width() ;
+        mCenter.y += (e->y() - mLastY) * mViewScale / width() ;
 #ifdef DEBUG
         std::cerr << "Current x=" << e->x() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->x() - mLastX << ", " << e->y() - mLastY << std::endl;
 #endif
@@ -674,9 +672,9 @@ void MapViewer::computeRelatedTransform()
 	mMA->getImageParams(mSelectedImage,img1);
 	mMA->getImageParams(mLastSelectedImage,img2);
 
-    MapDB::GPSCoord new_corner ;
-    new_corner.lon = img2.top_left_corner.lon + dx/img2.W*img2.scale ;
-    new_corner.lat = img2.top_left_corner.lat - dy/img2.W*img2.scale ;
+    MapDB::ImageSpaceCoord new_corner ;
+    new_corner.x = img2.top_left_corner.x + dx;
+    new_corner.y = img2.top_left_corner.y - dy;
 
 	mMA->placeImage(mSelectedImage,new_corner);
     updateGL();
