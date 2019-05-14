@@ -481,6 +481,8 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
     QGLViewer::mouseReleaseEvent(e);
 }
 
+// This code cannot use the similar function in MapDB because eventualy it will request less images so the search will be faster than searching in the whole DB.
+
 bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename)
 {
 	float is_y,is_x;

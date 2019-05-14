@@ -39,9 +39,44 @@ QImage MapAccessor::getImageData(const QString& image_filename)
     return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
 
-QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord &top_left, const MapDB::ImageSpaceCoord &bottom_right, int W, int H)
+QRgb MapAccessor::computeInterpolatedPixelValue(const MapDB::ImageSpaceCoord& is) const
 {
-    std::cerr << __PRETTY_FUNCTION__ << ": not implemented." << std::endl;
+	QString selection ;
+
+	// That could be accelerated using a KDtree
+
+#warning Code missing here: TODO
+// 	for(int i=mImagesToDraw.size()-1;i>=0;--i)
+// 		if(	       mImagesToDraw[i].top_left_corner.x                      <= is_x
+// 		           && mImagesToDraw[i].top_left_corner.x + mImagesToDraw[i].W >= is_x
+// 		           && mImagesToDraw[i].top_left_corner.y                      <= is_y
+// 		           && mImagesToDraw[i].top_left_corner.y + mImagesToDraw[i].H >= is_y )
+// 		{
+// 			image_filename = mImagesToDraw[i].filename;
+//
+// 			float img_x =                           is_x - mImagesToDraw[i].top_left_corner.x;
+// 			float img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].top_left_corner.y);
+//
+// 			return true;
+// 		}
+
+	return 0;
+}
+
+QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& top_left, const MapDB::ImageSpaceCoord& bottom_right, int W, int H)
+{
+    QImage img(W,H,QImage::Format_RGB32);
+
+    for(int i=0;i<W;++i)
+        for(int j=0;j<H;++j)
+        {
+            QString filename ;
+
+            float cx = top_left.x + i/(float)W*(bottom_right.x - top_left.x);
+            float cy = top_left.y + j/(float)W*(bottom_right.y - top_left.y);
+
+            img.setPixel(i,j,computeInterpolatedPixelValue(MapDB::ImageSpaceCoord(cx,cy)));
+        }
 
     return QImage();
 }

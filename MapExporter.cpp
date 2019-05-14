@@ -90,14 +90,23 @@ void MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const 
 		{
 			KmzFile::LayerData ld ;
 
-			ld.east_limit  = top_left_corner.x +  i    * tile_angular_size;
-			ld.west_limit  = top_left_corner.x + (i+1) * tile_angular_size;
-			ld.north_limit = top_left_corner.y +  j    * tile_angular_size;	// limits of the zone
-			ld.south_limit = top_left_corner.y + (j+1) * tile_angular_size;
+            MapDB::GPSCoord g1 ;
+            MapDB::GPSCoord g2 ;
+
+            MapDB::ImageSpaceCoord top_left    (top_left_corner.x + (i+1) * tile_angular_size,top_left_corner.y +  j    * tile_angular_size);
+            MapDB::ImageSpaceCoord bottom_right(top_left_corner.x +  i    * tile_angular_size,top_left_corner.y + (j+1) * tile_angular_size);
+
+            mA.mapDB().viewCoordinatesToGPSCoordinates(top_left,g1) ;
+            mA.mapDB().viewCoordinatesToGPSCoordinates(bottom_right,g2) ;
+
+			ld.east_limit  = g2.lon;
+			ld.west_limit  = g1.lon;
+			ld.north_limit = g1.lat;	// limits of the zone
+			ld.south_limit = g2.lat;
 
 			ld.rotation = 0.0; 	// rotation angle of the zone
 
-			QImage img = mA.extractTile(MapDB::ImageSpaceCoord(ld.north_limit,ld.west_limit), MapDB::ImageSpaceCoord(ld.south_limit,ld.east_limit),1024,1024);
+			QImage img = mA.extractTile(top_left,bottom_right,1024,1024);
 
             ld.image_name = "image_data_" + QString::number(n,10,'0')+".jpg";
 

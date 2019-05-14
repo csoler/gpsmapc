@@ -51,6 +51,7 @@ class MapAccessor
 
 	private:
 		const unsigned char *getPixelData(const QString& filename) const;
+		QRgb computeInterpolatedPixelValue(const MapDB::ImageSpaceCoord& is) const;
 
 		MapDB& mDb;
         mutable std::map<QString,QImage> mImageCache ;
