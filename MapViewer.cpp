@@ -598,6 +598,15 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 			displayText += QString::number(e->x()) + "," +QString::number(e->y());
 			displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
 
+            float global_x,global_y ;
+
+			screenCoordinatesToImageSpaceCoordinates(e->x(),e->y(),global_x,global_y);
+
+            MapDB::GPSCoord g ;
+
+            if(mMA->mapDB().viewCoordinatesToGPSCoordinates(MapDB::ImageSpaceCoord(global_x,global_y),g))
+                displayText += "\nLat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
+
 			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
 		}
 

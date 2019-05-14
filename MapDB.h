@@ -72,6 +72,8 @@ class MapDB
         const ReferencePoint& getReferencePoint(int i) const { return i==0?mReferencePoint1:mReferencePoint2; }
         int numberOfReferencePoints() const ;
 
+        bool viewCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const ;
+
 	private:
 		bool init();
 		void loadDB(const QString& source_directory);

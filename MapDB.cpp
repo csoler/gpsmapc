@@ -349,7 +349,32 @@ int MapDB::numberOfReferencePoints() const
     return 2;
 }
 
+bool MapDB::viewCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const
+{
+    if(mReferencePoint1.filename.isNull() || mReferencePoint2.filename.isNull())
+        return false;
 
+    auto it1 = mImages.find(mReferencePoint1.filename) ;
+    auto it2 = mImages.find(mReferencePoint2.filename) ;
+
+    if(it1 == mImages.end() || it2 == mImages.end())
+        return false;
+
+    // Compute the image space coordinates of the two reference points.
+
+    MapDB::ImageSpaceCoord p1(it1->second.top_left_corner.x + mReferencePoint1.x,it1->second.top_left_corner.y + mReferencePoint1.y) ;
+    MapDB::ImageSpaceCoord p2(it2->second.top_left_corner.x + mReferencePoint2.x,it2->second.top_left_corner.y + mReferencePoint2.y) ;
+
+    if(p1.x == p2.x || p1.y == p2.y)
+        return false;
+
+    // now compute the actual GPS coordinates of ic
+
+    g.lon = mReferencePoint1.lon + (ic.x - p1.x)/(p2.x - p1.x)*(mReferencePoint2.lon - mReferencePoint1.lon) ;
+    g.lat = mReferencePoint1.lat + (ic.y - p1.y)/(p2.y - p1.y)*(mReferencePoint2.lat - mReferencePoint1.lat) ;
+
+    return true;
+}
 
 
 
