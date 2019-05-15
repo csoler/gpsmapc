@@ -434,7 +434,7 @@ void MapViewer::draw()
 		glBegin(GL_LINE_LOOP);
 
 		for(int l=0;l<nb_pts;++l)
-			glVertex2f(p.x + img.bottom_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
+			glVertex2f(         p.x  + img.bottom_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
 			           (img.H-1-p.y) + img.bottom_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
 
 		glEnd();
@@ -450,7 +450,27 @@ void MapViewer::draw()
 
     // Draw the export grid
 
+    MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
 
+    screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
+    screenCoordinatesToImageSpaceCoordinates(width()-1,height()-1,bottom_right_corner);
+
+    glColor3d(0.7,0.2,0.3);
+    glBegin(GL_LINES);
+
+	for(float x=top_left_corner.x;x<bottom_right_corner.x; x+=1024)
+    {
+        glVertex2f(x,top_left_corner.y);
+        glVertex2f(x,bottom_right_corner.y);
+	}
+	for(float y=bottom_right_corner.y;y<top_left_corner.y; y+=1024)
+    {
+        glVertex2f(top_left_corner.x,y);
+        glVertex2f(bottom_right_corner.x,y);
+	}
+    glEnd();
+
+	CHECK_GL_ERROR();
 }
 
 GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor::ImageData& img_data)
