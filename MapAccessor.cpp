@@ -3,7 +3,7 @@
 
 #include "MapAccessor.h"
 
-void MapAccessor::getImagesToDraw(MapDB::ImageSpaceCoord& mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
+void MapAccessor::getImagesToDraw(const MapDB::ImageSpaceCoord& mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
 {
     // For now, just dont be subtle: return all known images.
     // To do:
@@ -39,43 +39,53 @@ QImage MapAccessor::getImageData(const QString& image_filename)
     return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
 
-QRgb MapAccessor::computeInterpolatedPixelValue(const MapDB::ImageSpaceCoord& is) const
+bool MapAccessor::findImagePixel(const MapDB::ImageSpaceCoord& is,const std::vector<MapAccessor::ImageData>& images,float& img_x,float& img_y,QString& image_filename)
 {
-	QString selection ;
+	for(int i=images.size()-1;i>=0;--i)
+        if(	       images[i].bottom_left_corner.x               <= is.x
+                && images[i].bottom_left_corner.x + images[i].W >= is.x
+                && images[i].bottom_left_corner.y               <= is.y
+                && images[i].bottom_left_corner.y + images[i].H >= is.y )
+		{
+			image_filename = images[i].filename;
 
-	// That could be accelerated using a KDtree
+            img_x = is.x - images[i].bottom_left_corner.x;
+            img_y = images[i].H - 1 - (is.y - images[i].bottom_left_corner.y);
 
-#warning Code missing here: TODO
-// 	for(int i=mImagesToDraw.size()-1;i>=0;--i)
-// 		if(	       mImagesToDraw[i].top_left_corner.x                      <= is_x
-// 		           && mImagesToDraw[i].top_left_corner.x + mImagesToDraw[i].W >= is_x
-// 		           && mImagesToDraw[i].top_left_corner.y                      <= is_y
-// 		           && mImagesToDraw[i].top_left_corner.y + mImagesToDraw[i].H >= is_y )
-// 		{
-// 			image_filename = mImagesToDraw[i].filename;
-//
-// 			float img_x =                           is_x - mImagesToDraw[i].top_left_corner.x;
-// 			float img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].top_left_corner.y);
-//
-// 			return true;
-// 		}
+            return true;
+		}
 
-	return 0;
+    return false;
 }
 
 QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& top_left, const MapDB::ImageSpaceCoord& bottom_right, int W, int H)
 {
+    std::vector<ImageData> images ;
+    getImagesToDraw(MapDB::ImageSpaceCoord(top_left.x,bottom_right.y),MapDB::ImageSpaceCoord(bottom_right.x,top_left.y),images);
+
     QImage img(W,H,QImage::Format_RGB32);
+	float img_x,img_y;
+
+    QString last_image_loaded ;
+    QImage current_image;
 
     for(int i=0;i<W;++i)
         for(int j=0;j<H;++j)
         {
             QString filename ;
+            MapDB::ImageSpaceCoord c ;
 
-            float cx = top_left.x + i/(float)W*(bottom_right.x - top_left.x);
-            float cy = top_left.y + j/(float)W*(bottom_right.y - top_left.y);
+            c.x = top_left.x + i/(float)W*(bottom_right.x - top_left.x);
+            c.y = top_left.y + j/(float)W*(bottom_right.y - top_left.y);
 
-            img.setPixel(i,j,computeInterpolatedPixelValue(MapDB::ImageSpaceCoord(cx,cy)));
+            findImagePixel(c,images,img_x,img_y,filename) ;
+
+            if(last_image_loaded != filename)
+            {
+                last_image_loaded = filename ;
+                current_image = QImage(filename);
+            }
+            img.setPixelColor(i,j,MapRegistration::interpolated_image_color(current_image.bits(),current_image.width(),current_image.height(),img_x,img_y));
         }
 
     return QImage();

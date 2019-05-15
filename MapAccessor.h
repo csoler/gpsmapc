@@ -21,7 +21,7 @@ class MapAccessor
         const MapDB::ImageSpaceCoord& topRightCorner() const { return mDb.topRightCorner() ; }
         const MapDB::ImageSpaceCoord& BottomLeftCorner()     const { return mDb.bottomLeftCorner() ; }
 
-        void getImagesToDraw(MapDB::ImageSpaceCoord& mBottomLeftViewCorner,const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
+        void getImagesToDraw(const MapDB::ImageSpaceCoord &mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
         QImage getImageData(const QString& image_filename);
 		bool getImageParams(const QString& image_filename, MapDB::RegisteredImage &img);
 
@@ -48,6 +48,8 @@ class MapAccessor
 		void saveMap();
 
         const MapDB& mapDB() const { return mDb ; }
+
+		static bool findImagePixel(const MapDB::ImageSpaceCoord& is,const std::vector<MapAccessor::ImageData>& images,float& img_x,float& img_y,QString& image_filename);
 
 	private:
 		const unsigned char *getPixelData(const QString& filename) const;

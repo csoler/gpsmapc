@@ -61,7 +61,7 @@ void KmzFile::writeToFile(const QString& fname) const
     o.close();
 }
 
-void MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const MapDB::ImageSpaceCoord& bottom_right_corner,const QString& output_directory)
+bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const MapDB::ImageSpaceCoord& bottom_right_corner,const QString& output_directory)
 {
     std::cerr << "Exporting map to Kmz file. Top left: " << top_left_corner << ", bottom right: " << bottom_right_corner << std::endl;
 
@@ -118,6 +118,8 @@ void MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const 
     // 3 - make the zip file
 
     kmzfile.writeToFile(output_directory + "/doc.kml");
+
+    return true;
 }
 
 

@@ -18,16 +18,17 @@ public:
 protected:
 	void computeSlice();
 	void updateSlice();
+	void exportMap();
 
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
 	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
-	void screenCoordinatesToImageSpaceCoordinates(int i, int j, float& view_x, float& view_y) const;
+	void screenCoordinatesToImageSpaceCoordinates(int i, int j, MapDB::ImageSpaceCoord &is) const;
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
 	void computeAllPositions();
 	void addReferencePoint(QMouseEvent *e);
-	bool computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename);
+	bool screenPositionToSingleImagePixelPosition(int px, int py, float &img_x, float &img_y, QString& image_filename);
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;

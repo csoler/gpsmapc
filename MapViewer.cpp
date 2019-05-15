@@ -1,10 +1,13 @@
 #include <GL/glut.h>
 #include <QMimeData>
 #include <QToolTip>
+#include <QFileDialog>
+#include <QMessageBox>
 
 #include "MapAccessor.h"
 #include "MapViewer.h"
 #include "MapDB.h"
+#include "MapExporter.h"
 
 MapViewer::MapViewer(QWidget *parent)
     : QGLViewer(parent)
@@ -181,8 +184,7 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
         displayMessage("Map saved");
 		break;
 
-    case Qt::Key_X: mExplicitDraw = !mExplicitDraw ;
-        			updateGL();
+    case Qt::Key_X: exportMap();
         break;
 
     case Qt::Key_B: mShowImagesBorder = !mShowImagesBorder ;
@@ -225,6 +227,31 @@ void MapViewer::resizeEvent(QResizeEvent *e)
     QGLViewer::resizeEvent(e);
 }
 
+void MapViewer::exportMap()
+{
+    QString dir_name = QFileDialog::getSaveFileName(NULL,"Please choose a new directory name to create the export.",".","Directories (*)",NULL,QFileDialog::ShowDirsOnly);
+
+    if(dir_name.isNull())
+        return;
+
+//    if(QDir(dir_name).exists())
+//    {
+//        QMessageBox::critical(NULL,"Directory already exists!" << std::endl;
+//        return;
+//    }
+
+    QDir::current().mkdir(dir_name);
+    MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
+
+    screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
+    screenCoordinatesToImageSpaceCoordinates(width()-1,height()-1,bottom_right_corner);
+
+ 	if(!MapExporter(*mMA).exportMap(top_left_corner,bottom_right_corner, dir_name))
+        return;
+
+    QMessageBox::information(NULL,"Export finished","<p>Your map is exported in Garmin kmz format in directory " +dir_name +".<br/>You can now zip it and export it to your Garmin device.</p>");
+}
+
 static void checkGLError(const std::string& place,uint32_t line)
 {
     GLuint e = 0 ;
@@ -236,28 +263,28 @@ static void checkGLError(const std::string& place,uint32_t line)
 
 void MapViewer::draw()
 {
-    if(mSliceUpdateNeeded && mExplicitDraw)
-    {
-        computeSlice();
-        mSliceUpdateNeeded = false ;
-    }
+	if(mSliceUpdateNeeded && mExplicitDraw)
+	{
+		computeSlice();
+		mSliceUpdateNeeded = false ;
+	}
 
-    glClearColor(0,0,0,0) ;
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) ;
+	glClearColor(0,0,0,0) ;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) ;
 
-    glDisable(GL_DEPTH_TEST) ;
+	glDisable(GL_DEPTH_TEST) ;
 
-    glMatrixMode(GL_MODELVIEW) ;
-    glLoadIdentity() ;
+	glMatrixMode(GL_MODELVIEW) ;
+	glLoadIdentity() ;
 
-    glMatrixMode(GL_PROJECTION) ;
-    glLoadIdentity() ;
+	glMatrixMode(GL_PROJECTION) ;
+	glLoadIdentity() ;
 
-    float aspect_ratio = height() / (float)width() ;
+	float aspect_ratio = height() / (float)width() ;
 
-    glOrtho(mCenter.x - mViewScale/2.0,mCenter.x + mViewScale/2.0,mCenter.y - mViewScale/2.0*aspect_ratio,mCenter.y + mViewScale/2.0*aspect_ratio,1,-1) ;
+	glOrtho(mCenter.x - mViewScale/2.0,mCenter.x + mViewScale/2.0,mCenter.y - mViewScale/2.0*aspect_ratio,mCenter.y + mViewScale/2.0*aspect_ratio,1,-1) ;
 
-    if(mExplicitDraw)
+	if(mExplicitDraw)
 	{
 		// Not the best way to do this: we compute the image manually. However, this
 		// method is the one we're going to use for exporting the data, so it's important to be able to visualize its output as well.
@@ -269,156 +296,161 @@ void MapViewer::draw()
 		glPixelTransferf(GL_BLUE_SCALE ,100.0) ;
 
 		glDrawPixels(mCurrentSlice_W,mCurrentSlice_H,GL_RGB,GL_FLOAT,(GLvoid*)mCurrentSlice_data) ;
+		return;
 	}
-    else
+
+	// Here we use the graphics card for the texture mapping, so as to use the hardware to perform filtering.
+	// Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
+	// method is only fod quick display purpose.
+
+	MapDB::ImageSpaceCoord bottomLeftViewCorner(  mCenter.x - mViewScale/2.0, mCenter.y + mViewScale/2.0*aspect_ratio );
+	MapDB::ImageSpaceCoord topRightViewCorner  (  mCenter.x + mViewScale/2.0, mCenter.y - mViewScale/2.0*aspect_ratio );
+
+	mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,mImagesToDraw);
+
+	glPixelTransferf(GL_RED_SCALE  ,1.0) ;
+	glPixelTransferf(GL_GREEN_SCALE,1.0) ;
+	glPixelTransferf(GL_BLUE_SCALE ,1.0) ;
+
+	glDisable(GL_DEPTH_TEST);
+
+	CHECK_GL_ERROR();
+
+	for(uint32_t i=0;i<mImagesToDraw.size();++i)
 	{
-		// Here we use the graphics card for the texture mapping, so as to use the hardware to perform filtering.
-        // Obviously that prevents us to do some more fancy image treatment such as selective blending etc. so this
-        // method is only fod quick display purpose.
+		float image_lon_size = mImagesToDraw[i].W;
+		float image_lat_size = mImagesToDraw[i].H;
 
-        MapDB::ImageSpaceCoord bottomLeftViewCorner(  mCenter.x - mViewScale/2.0, mCenter.y + mViewScale/2.0*aspect_ratio );
-        MapDB::ImageSpaceCoord topRightViewCorner  (  mCenter.x + mViewScale/2.0, mCenter.y - mViewScale/2.0*aspect_ratio );
+		glDisable(GL_LIGHTING);
 
-        mMA->getImagesToDraw(bottomLeftViewCorner,topRightViewCorner,mImagesToDraw);
+		GLuint tex_id = getTextureId(mImagesToDraw[i].filename,mImagesToDraw[i]) ;
 
-		glPixelTransferf(GL_RED_SCALE  ,1.0) ;
-		glPixelTransferf(GL_GREEN_SCALE,1.0) ;
-		glPixelTransferf(GL_BLUE_SCALE ,1.0) ;
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D,tex_id);
 
-        glDisable(GL_DEPTH_TEST);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+		glBindTexture(GL_TEXTURE_2D,tex_id);
+		CHECK_GL_ERROR();
+
+		glColor3f(1,1,1);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+		glBegin(GL_QUADS);
+
+		glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+		glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+		glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
+		glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
+
+		glEnd();
+		glDisable(GL_TEXTURE_2D);
 
 		CHECK_GL_ERROR();
 
-        for(uint32_t i=0;i<mImagesToDraw.size();++i)
-        {
-            float image_lon_size = mImagesToDraw[i].W;
-            float image_lat_size = mImagesToDraw[i].H;
-
-            glDisable(GL_LIGHTING);
-
-			GLuint tex_id = getTextureId(mImagesToDraw[i].filename,mImagesToDraw[i]) ;
-
-            glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D,tex_id);
-
-            glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-
-			glBindTexture(GL_TEXTURE_2D,tex_id);
-            CHECK_GL_ERROR();
-
-            glColor3f(1,1,1);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-            glBegin(GL_QUADS);
-
-            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
-
-            glEnd();
-			glDisable(GL_TEXTURE_2D);
-
-            CHECK_GL_ERROR();
-
-            if(mImagesToDraw[i].filename == mSelectedImage)
-            {
-				glLineWidth(5.0);
-				glColor3f(1.0,0.7,0.2) ;
-			}
-			else if(mImagesToDraw[i].filename == mLastSelectedImage)
-            {
-				glLineWidth(5.0);
-				glColor3f(0.7,0.9,0.3) ;
-            }
-			else
-			{
-				glLineWidth(1.0);
-				glColor3f(1.0,1.0,1.0);
-			}
-
-            if(mShowImagesBorder)
-			{
-				glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-
-				glBegin(GL_QUADS);
-                glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
-                glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
-                glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
-                glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
-				glEnd();
-			}
-
-            // now draw file descriptors if any
-
+		if(mImagesToDraw[i].filename == mSelectedImage)
+		{
 			glLineWidth(5.0);
-			static const int nb_pts = 50 ;
-			int H = mImagesToDraw[i].H;
+			glColor3f(1.0,0.7,0.2) ;
+		}
+		else if(mImagesToDraw[i].filename == mLastSelectedImage)
+		{
+			glLineWidth(5.0);
+			glColor3f(0.7,0.9,0.3) ;
+		}
+		else
+		{
+			glLineWidth(1.0);
+			glColor3f(1.0,1.0,1.0);
+		}
 
-            for(uint32_t k=0;k<mImagesToDraw[i].descriptors.size();++k)
-            {
-                const MapRegistration::ImageDescriptor& desc(mImagesToDraw[i].descriptors[k]);
-				float radius = mImagesToDraw[i].descriptors[k].pixel_radius;
+		if(mShowImagesBorder)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
-                glColor3f(1.0,0.0,0.0);
+			glBegin(GL_QUADS);
+			glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+			glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+			glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
+			glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
+			glEnd();
+		}
 
-                glBegin(GL_LINE_LOOP) ;
+		// now draw file descriptors if any
 
-                for(int l=0;l<nb_pts;++l)
-                    glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts)),
-                               mImagesToDraw[i].bottom_left_corner.y + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts)));
+		glLineWidth(5.0);
+		static const int nb_pts = 50 ;
+		int H = mImagesToDraw[i].H;
 
-                glEnd();
-            }
+		for(uint32_t k=0;k<mImagesToDraw[i].descriptors.size();++k)
+		{
+			const MapRegistration::ImageDescriptor& desc(mImagesToDraw[i].descriptors[k]);
+			float radius = mImagesToDraw[i].descriptors[k].pixel_radius;
 
-            // also draw current descriptor mask around current point
-			glColor3f(0.7,1.0,0.2);
-
-            glEnable(GL_LINE_SMOOTH) ;
-            glBlendFunc(GL_ONE_MINUS_SRC_ALPHA,GL_SRC_ALPHA) ;
+			glColor3f(1.0,0.0,0.0);
 
 			glBegin(GL_LINE_LOOP) ;
 
-			float radius = mCurrentDescriptor.pixel_radius;
-
 			for(int l=0;l<nb_pts;++l)
-                    glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts)),
-                               mImagesToDraw[i].bottom_left_corner.y + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts)));
+				glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts)),
+				           mImagesToDraw[i].bottom_left_corner.y + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts)));
 
 			glEnd();
-			glLineWidth(1.0);
-        }
-		CHECK_GL_ERROR();
+		}
 
-        for(int i=0;i<mMA->mapDB().numberOfReferencePoints();++i)
-        {
-            const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
-            MapDB::RegisteredImage img;
+		// also draw current descriptor mask around current point
+		glColor3f(0.7,1.0,0.2);
 
-			mMA->getImageParams(p.filename,img);
+		glEnable(GL_LINE_SMOOTH) ;
+		glBlendFunc(GL_ONE_MINUS_SRC_ALPHA,GL_SRC_ALPHA) ;
 
-			float radius = 100;
-            int nb_pts = 50;
+		glBegin(GL_LINE_LOOP) ;
 
-            glColor3f(0.1,0.3,0.9);
-            glLineWidth(3.0);
-            glBegin(GL_LINE_LOOP);
+		float radius = mCurrentDescriptor.pixel_radius;
 
-			for(int l=0;l<nb_pts;++l)
-                    glVertex2f(p.x + img.bottom_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
-                              (img.H-1-p.y) + img.bottom_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
+		for(int l=0;l<nb_pts;++l)
+			glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts)),
+			           mImagesToDraw[i].bottom_left_corner.y + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts)));
 
-			glEnd();
+		glEnd();
+		glLineWidth(1.0);
+	}
+	CHECK_GL_ERROR();
 
-            glEnable(GL_POINT_SMOOTH);
-            glPointSize(10.0);
+    // Draw the reference points
 
-            glBegin(GL_POINTS);
-            glVertex2f(p.x + img.bottom_left_corner.x, (img.H-1-p.y) + img.bottom_left_corner.y);
-            glEnd();
-        }
-		CHECK_GL_ERROR();
-    }
+	for(int i=0;i<mMA->mapDB().numberOfReferencePoints();++i)
+	{
+		const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
+		MapDB::RegisteredImage img;
+
+		mMA->getImageParams(p.filename,img);
+
+		float radius = 100;
+		int nb_pts = 50;
+
+		glColor3f(0.1,0.3,0.9);
+		glLineWidth(3.0);
+		glBegin(GL_LINE_LOOP);
+
+		for(int l=0;l<nb_pts;++l)
+			glVertex2f(p.x + img.bottom_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
+			           (img.H-1-p.y) + img.bottom_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
+
+		glEnd();
+
+		glEnable(GL_POINT_SMOOTH);
+		glPointSize(10.0);
+
+		glBegin(GL_POINTS);
+		glVertex2f(p.x + img.bottom_left_corner.x, (img.H-1-p.y) + img.bottom_left_corner.y);
+		glEnd();
+	}
+	CHECK_GL_ERROR();
+
+    // Draw the export grid
+
+
 }
 
 GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor::ImageData& img_data)
@@ -483,37 +515,18 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
 
 // This code cannot use the similar function in MapDB because eventualy it will request less images so the search will be faster than searching in the whole DB.
 
-bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& img_y,QString& image_filename)
+bool MapViewer::screenPositionToSingleImagePixelPosition(int px,int py,float& img_x,float& img_y,QString& image_filename)
 {
-	float is_y,is_x;
-	screenCoordinatesToImageSpaceCoordinates(px,py,is_x,is_y);
+	MapDB::ImageSpaceCoord is;
+	screenCoordinatesToImageSpaceCoordinates(px,py,is);
 
-	QString selection ;
-	float aspect = height()/(float)width();
-
-	// That could be accelerated using a KDtree
-
-	for(int i=mImagesToDraw.size()-1;i>=0;--i)
-        if(	       mImagesToDraw[i].bottom_left_corner.x                      <= is_x
-                && mImagesToDraw[i].bottom_left_corner.x + mImagesToDraw[i].W >= is_x
-                && mImagesToDraw[i].bottom_left_corner.y                      <= is_y
-                && mImagesToDraw[i].bottom_left_corner.y + mImagesToDraw[i].H >= is_y )
-		{
-			image_filename = mImagesToDraw[i].filename;
-
-            img_x = is_x - mImagesToDraw[i].bottom_left_corner.x;
-            img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].bottom_left_corner.y);
-
-            return true;
-		}
-
-    return false;
+    return mMA->findImagePixel(is,mImagesToDraw,img_x,img_y,image_filename) ;
 }
 
-void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,float& is_x,float& is_y) const
+void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,MapDB::ImageSpaceCoord& is) const
 {
-    is_x = (i/(float)width() -0.5) * mViewScale + mCenter.x ;
-    is_y = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.y ;
+    is.x = (i/(float)width() -0.5) * mViewScale + mCenter.x ;
+    is.y = ((height()-j-1)/(float)height()-0.5) * mViewScale *(height()/(float)width()) + mCenter.y ;
 #ifdef DEBUG
     std::cerr << is_x << " " << is_y << std::endl;
 #endif
@@ -521,10 +534,10 @@ void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,float& is_x
 
 void MapViewer::addReferencePoint(QMouseEvent *e)
 {
-    int x,y;
+    float x,y;
     QString selection;
 
-    if(!computeImagePixelAtScreenPosition(e->x(),e->y(),x,y,selection))
+    if(!screenPositionToSingleImagePixelPosition(e->x(),e->y(),x,y,selection))
         return ;
 
     if(!selection.isNull())
@@ -589,9 +602,9 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
     else // enter image selection mode
     {
         QString new_selection ;
-        int new_x,new_y;
+        float new_x,new_y;
 
-        if(computeImagePixelAtScreenPosition(e->x(),e->y(),new_x,new_y,new_selection))
+        if(screenPositionToSingleImagePixelPosition(e->x(),e->y(),new_x,new_y,new_selection))
 		{
 			mCurrentImageX = new_x;
 			mCurrentImageY = new_y;
@@ -600,15 +613,15 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 			displayText += QString::number(e->x()) + "," +QString::number(e->y());
 			displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
 
-            float global_x,global_y ;
+            MapDB::ImageSpaceCoord global ;
 
-			screenCoordinatesToImageSpaceCoordinates(e->x(),e->y(),global_x,global_y);
+			screenCoordinatesToImageSpaceCoordinates(e->x(),e->y(),global);
 
-            displayText += "\n G: " + QString::number(global_x) + "," + QString::number(global_y);
+            displayText += "\n G: " + QString::number((int)global.x) + "," + QString::number((int)global.y);
 
             MapDB::GPSCoord g ;
 
-            if(mMA->mapDB().imageSpaceCoordinatesToGPSCoordinates(MapDB::ImageSpaceCoord(global_x,global_y),g))
+            if(mMA->mapDB().imageSpaceCoordinatesToGPSCoordinates(global,g))
                 displayText += "\n Lat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
 
 			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);

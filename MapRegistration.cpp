@@ -13,6 +13,23 @@
 #include "MaxHeap.h"
 #include "MapRegistration.h"
 
+QColor MapRegistration::interpolated_image_color(const unsigned char *data,int W,int H,float i,float j)
+{
+    int I = (int)floor(i) ;
+    int J = (int)floor(j) ;
+
+    float di = i - I;
+    float dj = j - J;
+
+    int index = i+W*j ;
+
+    int r = ((1-di)*((1-dj)*data[3*(index+0+0) + 0] + dj*data[3*(index+0+W) + 0]) + di*((1-dj)*data[3*(index+1+0) + 0] + dj*data[3*(index+1+W) + 0]));
+    int g = ((1-di)*((1-dj)*data[3*(index+0+0) + 1] + dj*data[3*(index+0+W) + 1]) + di*((1-dj)*data[3*(index+1+0) + 1] + dj*data[3*(index+1+W) + 1]));
+    int b = ((1-di)*((1-dj)*data[3*(index+0+0) + 2] + dj*data[3*(index+0+W) + 2]) + di*((1-dj)*data[3*(index+1+0) + 2] + dj*data[3*(index+1+W) + 2]));
+
+    return QColor(r,g,b);
+}
+
 float MapRegistration::interpolated_image_intensity(const unsigned char *data,int W,int H,float i,float j)
 {
     int I = (int)floor(i) ;
