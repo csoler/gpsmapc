@@ -27,6 +27,7 @@ MapViewer::MapViewer(QWidget *parent)
     mMoving = false ;
     mMovingSelected = false ;
     mShowImagesBorder = true;
+    mShowExportGrid = false;
     mDisplayDescriptor=0;
 
     mViewScale = 1.0;		// 1 pixel = 10000/cm lat/lon
@@ -185,6 +186,10 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 		break;
 
     case Qt::Key_X: exportMap();
+        break;
+
+    case Qt::Key_G: mShowExportGrid = !mShowExportGrid;
+					updateGL();
         break;
 
     case Qt::Key_B: mShowImagesBorder = !mShowImagesBorder ;
@@ -450,25 +455,28 @@ void MapViewer::draw()
 
     // Draw the export grid
 
-    MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
+    if(mShowExportGrid)
+	{
+		MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
 
-    screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
-    screenCoordinatesToImageSpaceCoordinates(width()-1,height()-1,bottom_right_corner);
+		screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
+		screenCoordinatesToImageSpaceCoordinates(width()-1,height()-1,bottom_right_corner);
 
-    glColor3d(0.7,0.2,0.3);
-    glBegin(GL_LINES);
+		glColor3d(0.7,0.2,0.3);
+		glBegin(GL_LINES);
 
-	for(float x=top_left_corner.x;x<bottom_right_corner.x; x+=1024)
-    {
-        glVertex2f(x,top_left_corner.y);
-        glVertex2f(x,bottom_right_corner.y);
+		for(float x=top_left_corner.x;x<bottom_right_corner.x; x+=1024)
+		{
+			glVertex2f(x,top_left_corner.y);
+			glVertex2f(x,bottom_right_corner.y);
+		}
+		for(float y=bottom_right_corner.y;y<top_left_corner.y; y+=1024)
+		{
+			glVertex2f(top_left_corner.x,y);
+			glVertex2f(bottom_right_corner.x,y);
+		}
+		glEnd();
 	}
-	for(float y=bottom_right_corner.y;y<top_left_corner.y; y+=1024)
-    {
-        glVertex2f(top_left_corner.x,y);
-        glVertex2f(bottom_right_corner.x,y);
-	}
-    glEnd();
 
 	CHECK_GL_ERROR();
 }

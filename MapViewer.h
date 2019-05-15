@@ -49,6 +49,7 @@ protected:
     bool mExplicitDraw;
     bool mMovingSelected;
     bool mShowImagesBorder;
+    bool mShowExportGrid;
 
     MapRegistration::ImageDescriptor mCurrentDescriptor ;
 
