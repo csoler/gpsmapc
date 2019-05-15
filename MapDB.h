@@ -44,7 +44,7 @@ class MapDB
 		struct RegisteredImage
 		{
 			int W,H ;							// width/height of the image
-			ImageSpaceCoord top_left_corner;	// coordinates of the top-left corner of the image
+            ImageSpaceCoord bottom_left_corner;	// coordinates of the top-left corner of the image
 
             std::vector<MapRegistration::ImageDescriptor> descriptors;	// images descriptors, used to match images together
 		};
@@ -58,8 +58,8 @@ class MapDB
 
         const QString& rootDirectory() const { return mRootDirectory; }
 
-        const ImageSpaceCoord& topLeftCorner() const { return mTopLeft ; }
-        const ImageSpaceCoord& bottomRightCorner() const { return mBottomRight ; }
+        const ImageSpaceCoord& bottomLeftCorner() const { return mBottomLeft ; }
+        const ImageSpaceCoord& topRightCorner() const { return mTopRight ; }
 
 		void moveImage(const QString& mSelectedImage, float delta_is_x, float delta_is_y);
     	void placeImage(const QString& image_filename,const ImageSpaceCoord& new_corner);
@@ -72,7 +72,7 @@ class MapDB
         const ReferencePoint& getReferencePoint(int i) const { return i==0?mReferencePoint1:mReferencePoint2; }
         int numberOfReferencePoints() const ;
 
-        bool viewCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const ;
+        bool imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const ;
 
 	private:
 		bool init();
@@ -91,8 +91,8 @@ class MapDB
 
 		std::map<QString,MapDB::RegisteredImage> mImages ;
 
-		ImageSpaceCoord mTopLeft ;
-		ImageSpaceCoord mBottomRight ;
+        ImageSpaceCoord mBottomLeft ;
+        ImageSpaceCoord mTopRight ;
 
         ReferencePoint mReferencePoint1;
         ReferencePoint mReferencePoint2;

@@ -19,7 +19,7 @@ void MapAccessor::getImagesToDraw(MapDB::ImageSpaceCoord& mBottomLeftViewCorner,
 
         id.W               = it->second.W;
         id.H               = it->second.H;
-        id.top_left_corner = it->second.top_left_corner;
+        id.bottom_left_corner = it->second.bottom_left_corner;
         id.directory       = mDb.rootDirectory() ;
         id.filename        = it->first ;
         id.pixel_data      = getPixelData(id.directory + "/" + id.filename);

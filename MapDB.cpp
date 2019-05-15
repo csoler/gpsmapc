@@ -36,15 +36,15 @@ bool MapDB::init()
 {
     try
     {
-		mTopLeft.x     =  FLT_MAX;
-		mTopLeft.y     =  FLT_MAX;
-		mBottomRight.x = -FLT_MAX;
-		mBottomRight.y = -FLT_MAX;
+        mBottomLeft.x     =  FLT_MAX;
+        mBottomLeft.y     =  FLT_MAX;
+        mTopRight.x = -FLT_MAX;
+        mTopRight.y = -FLT_MAX;
 
 		loadDB(mRootDirectory);
         checkDirectory(mRootDirectory) ;
 
-		std::cerr << "Database read. Top left corner: " << mTopLeft << ", Bottom right corner: " << mBottomRight << std::endl;
+        std::cerr << "Database read. Top left corner: " << mBottomLeft << ", Bottom right corner: " << mTopRight << std::endl;
 
         if(mMapChanged)
             saveDB(mRootDirectory);
@@ -59,11 +59,11 @@ bool MapDB::init()
 
 void MapDB::includeImage(const MapDB::ImageSpaceCoord& top_left_corner,int W,int H)
 {
-	if(mTopLeft.x > top_left_corner.x) mTopLeft.x = top_left_corner.x;
-	if(mTopLeft.y > top_left_corner.y) mTopLeft.y = top_left_corner.y;
+    if(mBottomLeft.x > top_left_corner.x) mBottomLeft.x = top_left_corner.x;
+    if(mBottomLeft.y > top_left_corner.y) mBottomLeft.y = top_left_corner.y;
 
-	if(mBottomRight.x < top_left_corner.x+W) mBottomRight.x = top_left_corner.x+W;
-	if(mBottomRight.y < top_left_corner.y+H) mBottomRight.y = top_left_corner.y+H;
+    if(mTopRight.x < top_left_corner.x+W) mTopRight.x = top_left_corner.x+W;
+    if(mTopRight.y < top_left_corner.y+H) mTopRight.y = top_left_corner.y+H;
 }
 
 
@@ -136,10 +136,10 @@ void MapDB::loadDB(const QString& source_directory)
 
 			image.W = e.attribute("Width","0").toInt();
 			image.H = e.attribute("Height","0").toInt();
-			image.top_left_corner.x = e.attribute("TopLeftImageSpaceX","0.0").toFloat();
-			image.top_left_corner.y = e.attribute("TopLeftImageSpaceY","0.0").toFloat();
+            image.bottom_left_corner.x = e.attribute("BottomLeftImageSpaceX","0.0").toFloat();
+            image.bottom_left_corner.y = e.attribute("BottomLeftImageSpaceY","0.0").toFloat();
 
-            includeImage(image.top_left_corner,image.W,image.H) ;
+            includeImage(image.bottom_left_corner,image.W,image.H) ;
 
             mImages[filename] = image;
 		}
@@ -184,15 +184,15 @@ void MapDB::checkDirectory(const QString& source_directory)
                 RegisteredImage image ;
                 image.W = img_data.width();
                 image.H = img_data.height();
-                image.top_left_corner = MapDB::ImageSpaceCoord(0.0,0.0);
+                image.bottom_left_corner = MapDB::ImageSpaceCoord(0.0,0.0);
 
                 mImages[dir[i]] = image;
 
-                includeImage(image.top_left_corner,image.W,image.H);
+                includeImage(image.bottom_left_corner,image.W,image.H);
                 mMapChanged = true;
             }
             else
-                std::cerr << "  already in the database. Coordinates: " << it->second.top_left_corner << std::endl;
+                std::cerr << "  already in the database. Coordinates: " << it->second.bottom_left_corner << std::endl;
         }
 
     mMapChanged = false;
@@ -222,10 +222,10 @@ void MapDB::saveDB(const QString& directory)
 	QDomElement e = doc.createElement(QString("Map")) ;
 
 	e.setAttribute("creation_time",qulonglong(time(NULL)));
-	e.setAttribute("longitude_min",mTopLeft.x) ;
-	e.setAttribute("longitude_max",mBottomRight.x) ;
-	e.setAttribute("latitude_min",mTopLeft.y) ;
-	e.setAttribute("latitude_max",mBottomRight.y);
+    e.setAttribute("longitude_min",mBottomLeft.x) ;
+    e.setAttribute("longitude_max",mTopRight.x) ;
+    e.setAttribute("latitude_min",mBottomLeft.y) ;
+    e.setAttribute("latitude_max",mTopRight.y);
 
     if(!mReferencePoint1.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint1));
     if(!mReferencePoint2.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint2));
@@ -237,8 +237,8 @@ void MapDB::saveDB(const QString& directory)
 		ep.setAttribute("Filename",it->first);
 		ep.setAttribute("Width",it->second.W);
 		ep.setAttribute("Height",it->second.H);
-		ep.setAttribute("TopLeftImageSpaceX",it->second.top_left_corner.x);
-		ep.setAttribute("TopLeftImageSpaceY",it->second.top_left_corner.y);
+        ep.setAttribute("BottomLeftImageSpaceX",it->second.bottom_left_corner.x);
+        ep.setAttribute("BottomLeftImageSpaceY",it->second.bottom_left_corner.y);
 
 		e.appendChild(ep);
 	}
@@ -269,8 +269,8 @@ void MapDB::moveImage(const QString& filename,float delta_is_x,float delta_is_y)
         return;
     }
 
-    it->second.top_left_corner.x += delta_is_x;
-    it->second.top_left_corner.y += delta_is_y;
+    it->second.bottom_left_corner.x += delta_is_x;
+    it->second.bottom_left_corner.y += delta_is_y;
 
     mMapChanged = true;
 }
@@ -285,7 +285,7 @@ void MapDB::placeImage(const QString& image_filename, const ImageSpaceCoord &new
         return;
     }
 
-    it->second.top_left_corner = new_corner;
+    it->second.bottom_left_corner = new_corner;
 
     mMapChanged = true;
 }
@@ -349,7 +349,7 @@ int MapDB::numberOfReferencePoints() const
     return 2;
 }
 
-bool MapDB::viewCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const
+bool MapDB::imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const
 {
     if(mReferencePoint1.filename.isNull() || mReferencePoint2.filename.isNull())
         return false;
@@ -362,8 +362,8 @@ bool MapDB::viewCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,Map
 
     // Compute the image space coordinates of the two reference points.
 
-    MapDB::ImageSpaceCoord p1(it1->second.top_left_corner.x + mReferencePoint1.x,it1->second.top_left_corner.y + mReferencePoint1.y) ;
-    MapDB::ImageSpaceCoord p2(it2->second.top_left_corner.x + mReferencePoint2.x,it2->second.top_left_corner.y + mReferencePoint2.y) ;
+    MapDB::ImageSpaceCoord p1(it1->second.bottom_left_corner.x + mReferencePoint1.x,it1->second.bottom_left_corner.y + it1->second.H - 1 - mReferencePoint1.y) ;
+    MapDB::ImageSpaceCoord p2(it2->second.bottom_left_corner.x + mReferencePoint2.x,it2->second.bottom_left_corner.y + it1->second.H - 1 - mReferencePoint2.y) ;
 
     if(p1.x == p2.x || p1.y == p2.y)
         return false;

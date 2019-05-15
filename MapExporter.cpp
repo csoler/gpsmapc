@@ -96,8 +96,8 @@ void MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const 
             MapDB::ImageSpaceCoord top_left    (top_left_corner.x + (i+1) * tile_angular_size,top_left_corner.y +  j    * tile_angular_size);
             MapDB::ImageSpaceCoord bottom_right(top_left_corner.x +  i    * tile_angular_size,top_left_corner.y + (j+1) * tile_angular_size);
 
-            mA.mapDB().viewCoordinatesToGPSCoordinates(top_left,g1) ;
-            mA.mapDB().viewCoordinatesToGPSCoordinates(bottom_right,g2) ;
+            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(top_left,g1) ;
+            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(bottom_right,g2) ;
 
 			ld.east_limit  = g2.lon;
 			ld.west_limit  = g1.lon;

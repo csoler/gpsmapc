@@ -34,9 +34,9 @@ MapViewer::MapViewer(QWidget *parent)
 void MapViewer::setMapAccessor(MapAccessor *ma)
 {
     mMA = ma ;
-    mViewScale = (mMA->bottomRightCorner().x - mMA->topLeftCorner().y)/2.0 * 1.05;
-    mCenter.x = 0.5*(mMA->topLeftCorner().x + mMA->bottomRightCorner().x);
-    mCenter.y = 0.5*(mMA->topLeftCorner().y + mMA->bottomRightCorner().y);
+    mViewScale = (mMA->topRightCorner().x - mMA->BottomLeftCorner().y)/2.0 * 1.05;
+    mCenter.x = 0.5*(mMA->BottomLeftCorner().x + mMA->topRightCorner().x);
+    mCenter.y = 0.5*(mMA->BottomLeftCorner().y + mMA->topRightCorner().y);
 
     std::cerr << "Loaded new accessor. Center is " << mCenter << " scale is " << mViewScale << std::endl;
     updateSlice();
@@ -311,10 +311,10 @@ void MapViewer::draw()
 
             glBegin(GL_QUADS);
 
-            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y + image_lat_size );
-            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y + image_lat_size );
-            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y                  );
-            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y                  );
+            glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+            glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+            glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
+            glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
 
             glEnd();
 			glDisable(GL_TEXTURE_2D);
@@ -342,10 +342,10 @@ void MapViewer::draw()
 				glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
 				glBegin(GL_QUADS);
-				glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y + image_lat_size );
-				glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y + image_lat_size );
-				glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x + image_lon_size, mImagesToDraw[i].top_left_corner.y                  );
-				glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].top_left_corner.x                 , mImagesToDraw[i].top_left_corner.y                  );
+                glTexCoord2f(0.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+                glTexCoord2f(1.0,0.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y + image_lat_size );
+                glTexCoord2f(1.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x + image_lon_size, mImagesToDraw[i].bottom_left_corner.y                  );
+                glTexCoord2f(0.0,1.0); glVertex2f( mImagesToDraw[i].bottom_left_corner.x                 , mImagesToDraw[i].bottom_left_corner.y                  );
 				glEnd();
 			}
 
@@ -365,8 +365,8 @@ void MapViewer::draw()
                 glBegin(GL_LINE_LOOP) ;
 
                 for(int l=0;l<nb_pts;++l)
-					glVertex2f(mImagesToDraw[i].top_left_corner.x + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts)),
-                               mImagesToDraw[i].top_left_corner.y + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts)));
+                    glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    desc.x+radius*cos(2*M_PI*l/(float)nb_pts)),
+                               mImagesToDraw[i].bottom_left_corner.y + (H-1-desc.y+radius*sin(2*M_PI*l/(float)nb_pts)));
 
                 glEnd();
             }
@@ -382,8 +382,8 @@ void MapViewer::draw()
 			float radius = mCurrentDescriptor.pixel_radius;
 
 			for(int l=0;l<nb_pts;++l)
-					glVertex2f(mImagesToDraw[i].top_left_corner.x + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts)),
-                               mImagesToDraw[i].top_left_corner.y + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts)));
+                    glVertex2f(mImagesToDraw[i].bottom_left_corner.x + (    mCurrentImageX+radius*cos(2*M_PI*l/(float)nb_pts)),
+                               mImagesToDraw[i].bottom_left_corner.y + (H-1-mCurrentImageY+radius*sin(2*M_PI*l/(float)nb_pts)));
 
 			glEnd();
 			glLineWidth(1.0);
@@ -405,8 +405,8 @@ void MapViewer::draw()
             glBegin(GL_LINE_LOOP);
 
 			for(int l=0;l<nb_pts;++l)
-					glVertex2f(p.x + img.top_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
-                              (img.H-1-p.y) + img.top_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
+                    glVertex2f(p.x + img.bottom_left_corner.x + radius*cos(2*M_PI*l/(float)nb_pts),
+                              (img.H-1-p.y) + img.bottom_left_corner.y + radius*sin(2*M_PI*l/(float)nb_pts));
 
 			glEnd();
 
@@ -414,7 +414,7 @@ void MapViewer::draw()
             glPointSize(10.0);
 
             glBegin(GL_POINTS);
-			glVertex2f(p.x + img.top_left_corner.x, (img.H-1-p.y) + img.top_left_corner.y);
+            glVertex2f(p.x + img.bottom_left_corner.x, (img.H-1-p.y) + img.bottom_left_corner.y);
             glEnd();
         }
 		CHECK_GL_ERROR();
@@ -494,15 +494,15 @@ bool MapViewer::computeImagePixelAtScreenPosition(int px,int py,int& img_x,int& 
 	// That could be accelerated using a KDtree
 
 	for(int i=mImagesToDraw.size()-1;i>=0;--i)
-		if(	       mImagesToDraw[i].top_left_corner.x                      <= is_x
-                && mImagesToDraw[i].top_left_corner.x + mImagesToDraw[i].W >= is_x
-		        && mImagesToDraw[i].top_left_corner.y                      <= is_y
-                && mImagesToDraw[i].top_left_corner.y + mImagesToDraw[i].H >= is_y )
+        if(	       mImagesToDraw[i].bottom_left_corner.x                      <= is_x
+                && mImagesToDraw[i].bottom_left_corner.x + mImagesToDraw[i].W >= is_x
+                && mImagesToDraw[i].bottom_left_corner.y                      <= is_y
+                && mImagesToDraw[i].bottom_left_corner.y + mImagesToDraw[i].H >= is_y )
 		{
 			image_filename = mImagesToDraw[i].filename;
 
-			img_x = is_x - mImagesToDraw[i].top_left_corner.x;
-			img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].top_left_corner.y);
+            img_x = is_x - mImagesToDraw[i].bottom_left_corner.x;
+            img_y = mImagesToDraw[i].H - 1 - (is_y - mImagesToDraw[i].bottom_left_corner.y);
 
             return true;
 		}
@@ -604,10 +604,12 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 
 			screenCoordinatesToImageSpaceCoordinates(e->x(),e->y(),global_x,global_y);
 
+            displayText += "\n G: " + QString::number(global_x) + "," + QString::number(global_y);
+
             MapDB::GPSCoord g ;
 
-            if(mMA->mapDB().viewCoordinatesToGPSCoordinates(MapDB::ImageSpaceCoord(global_x,global_y),g))
-                displayText += "\nLat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
+            if(mMA->mapDB().imageSpaceCoordinatesToGPSCoordinates(MapDB::ImageSpaceCoord(global_x,global_y),g))
+                displayText += "\n Lat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
 
 			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
 		}
@@ -690,8 +692,8 @@ void MapViewer::computeRelatedTransform()
 	mMA->getImageParams(mLastSelectedImage,img2);
 
     MapDB::ImageSpaceCoord new_corner ;
-    new_corner.x = img2.top_left_corner.x + dx;
-    new_corner.y = img2.top_left_corner.y - dy;
+    new_corner.x = img2.bottom_left_corner.x + dx;
+    new_corner.y = img2.bottom_left_corner.y - dy;
 
 	mMA->placeImage(mSelectedImage,new_corner);
     updateGL();

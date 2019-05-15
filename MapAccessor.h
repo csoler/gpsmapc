@@ -11,15 +11,15 @@ class MapAccessor
         struct ImageData
         {
           	int W,H;
-            MapDB::ImageSpaceCoord top_left_corner ;
+            MapDB::ImageSpaceCoord bottom_left_corner ;
             const unsigned char *pixel_data;
             std::vector<MapRegistration::ImageDescriptor> descriptors;
             QString directory;
             QString filename;
         };
 
-        const MapDB::ImageSpaceCoord& bottomRightCorner() const { return mDb.bottomRightCorner() ; }
-        const MapDB::ImageSpaceCoord& topLeftCorner()     const { return mDb.topLeftCorner() ; }
+        const MapDB::ImageSpaceCoord& topRightCorner() const { return mDb.topRightCorner() ; }
+        const MapDB::ImageSpaceCoord& BottomLeftCorner()     const { return mDb.bottomLeftCorner() ; }
 
         void getImagesToDraw(MapDB::ImageSpaceCoord& mBottomLeftViewCorner,const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
         QImage getImageData(const QString& image_filename);
