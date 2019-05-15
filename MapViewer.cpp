@@ -246,12 +246,12 @@ void MapViewer::exportMap()
 //    }
 
     QDir::current().mkdir(dir_name);
-    MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
+    MapDB::ImageSpaceCoord bottom_left_corner,top_right_corner;
 
-    screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
-    screenCoordinatesToImageSpaceCoordinates(width()-1,height()-1,bottom_right_corner);
+    screenCoordinatesToImageSpaceCoordinates(0,height()-1,bottom_left_corner);
+    screenCoordinatesToImageSpaceCoordinates(width()-1,0,top_right_corner);
 
- 	if(!MapExporter(*mMA).exportMap(top_left_corner,bottom_right_corner, dir_name))
+ 	if(!MapExporter(*mMA).exportMap(bottom_left_corner,top_right_corner, dir_name))
         return;
 
     QMessageBox::information(NULL,"Export finished","<p>Your map is exported in Garmin kmz format in directory " +dir_name +".<br/>You can now zip it and export it to your Garmin device.</p>");
@@ -505,7 +505,7 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
 
 		glEnable(GL_TEXTURE_2D);
-		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.pixel_data);
+		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.texture_data);
 		glDisable(GL_TEXTURE_2D);
 
 		CHECK_GL_ERROR();

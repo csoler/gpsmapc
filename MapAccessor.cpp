@@ -22,7 +22,9 @@ void MapAccessor::getImagesToDraw(const MapDB::ImageSpaceCoord& mBottomLeftViewC
         id.bottom_left_corner = it->second.bottom_left_corner;
         id.directory       = mDb.rootDirectory() ;
         id.filename        = it->first ;
-        id.pixel_data      = getPixelData(id.directory + "/" + id.filename);
+
+        int tmp_W,tmp_H;
+        id.texture_data      = getPixelDataForTextureUsage(id.directory + "/" + id.filename,tmp_W,tmp_H);
         id.descriptors     = it->second.descriptors;
 
         images_to_draw.push_back(id);
@@ -34,7 +36,7 @@ bool MapAccessor::getImageParams(const QString& image_filename,MapDB::Registered
     return mDb.getImageParams(image_filename,img) ;
 }
 
-QImage MapAccessor::getImageData(const QString& image_filename)
+QImage MapAccessor::getImageData(const QString& image_filename) const
 {
     return QImage(mDb.rootDirectory() + "/" + image_filename);
 }
@@ -58,16 +60,13 @@ bool MapAccessor::findImagePixel(const MapDB::ImageSpaceCoord& is,const std::vec
     return false;
 }
 
-QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& top_left, const MapDB::ImageSpaceCoord& bottom_right, int W, int H)
+QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const MapDB::ImageSpaceCoord& top_right, int W, int H)
 {
     std::vector<ImageData> images ;
-    getImagesToDraw(MapDB::ImageSpaceCoord(top_left.x,bottom_right.y),MapDB::ImageSpaceCoord(bottom_right.x,top_left.y),images);
+    getImagesToDraw(bottom_left,top_right,images);
 
     QImage img(W,H,QImage::Format_RGB32);
 	float img_x,img_y;
-
-    QString last_image_loaded ;
-    QImage current_image;
 
     for(int i=0;i<W;++i)
         for(int j=0;j<H;++j)
@@ -75,34 +74,59 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& top_left, const Ma
             QString filename ;
             MapDB::ImageSpaceCoord c ;
 
-            c.x = top_left.x + i/(float)W*(bottom_right.x - top_left.x);
-            c.y = top_left.y + j/(float)W*(bottom_right.y - top_left.y);
+            c.x = bottom_left.x + i/(float)W*(top_right.x - bottom_left.x);
+            c.y = bottom_left.y + j/(float)W*(top_right.y - bottom_left.y);
 
             findImagePixel(c,images,img_x,img_y,filename) ;
 
-            if(last_image_loaded != filename)
-            {
-                last_image_loaded = filename ;
-                current_image = QImage(filename);
-            }
-            img.setPixelColor(i,j,MapRegistration::interpolated_image_color(current_image.bits(),current_image.width(),current_image.height(),img_x,img_y));
+            int tmp_W,tmp_H;
+            const unsigned char *data = getPixelData(filename,tmp_W,tmp_H);
+
+           // if(last_image_loaded != filename)
+           // {
+           //     last_image_loaded = filename ;
+           //     current_image = QImage(mapDB().rootDirectory()+"/"+filename);
+           // }
+
+            img.setPixelColor(i,j,MapRegistration::interpolated_image_color(data,tmp_W,tmp_H,img_x,img_y));
         }
 
     return QImage();
 }
 
-const unsigned char *MapAccessor::getPixelData(const QString& filename) const
+const unsigned char *MapAccessor::getPixelData(const QString& filename,int& W,int& H) const
 {
     auto it = mImageCache.find(filename) ;
 
     if(mImageCache.end() != it)
+    {
+        W = it->second.width();
+        H = it->second.height();
+        return it->second.bits() ;
+    }
+
+    std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
+
+    QImage img = getImageData(filename);
+    W=img.width();
+    H=img.height();
+    mImageCache[filename] = img;
+
+    return mImageCache[filename].bits();
+}
+const unsigned char *MapAccessor::getPixelDataForTextureUsage(const QString& filename,int& W,int& H) const
+{
+    auto it = mImageTextureCache.find(filename) ;
+
+    if(mImageTextureCache.end() != it)
         return it->second.bits() ;
 
     std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
 
-    mImageCache[filename] = QImage(filename).scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
+    mImageTextureCache[filename] = QImage(filename).scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
+    W = H = 1024;
 
-    return mImageCache[filename].bits();
+    return mImageTextureCache[filename].bits();
 }
 
 void MapAccessor::moveImage(const QString& image_filename,float delta_lon,float delta_lat)

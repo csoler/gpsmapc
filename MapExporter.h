@@ -8,7 +8,7 @@ class MapExporter
 public:
     MapExporter(MapAccessor& ma) : mA(ma) {}
 
-    bool exportMap(const MapDB::ImageSpaceCoord &top_left_corner, const MapDB::ImageSpaceCoord &bottom_right_corner, const QString &output_directory);
+    bool exportMap(const MapDB::ImageSpaceCoord &bottom_left_corner, const MapDB::ImageSpaceCoord &top_right_corner, const QString &output_directory);
 
 private:
     MapAccessor& mA;

@@ -61,26 +61,29 @@ void KmzFile::writeToFile(const QString& fname) const
     o.close();
 }
 
-bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const MapDB::ImageSpaceCoord& bottom_right_corner,const QString& output_directory)
+bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,const MapDB::ImageSpaceCoord& top_right_corner,const QString& output_directory)
 {
-    std::cerr << "Exporting map to Kmz file. Top left: " << top_left_corner << ", bottom right: " << bottom_right_corner << std::endl;
+    std::cerr << "Exporting map to Kmz file. Bottom left: " << bottom_left_corner << ", top right: " << top_right_corner << std::endl;
 
     // 1 - determine how many tiles we need using the following constraints:
     //     	* each tile should be 1024x1024 at most
     //		* the map accessor will teel us what is the approximate virtual resolution of the window
 
+    if(top_right_corner.x <= bottom_left_corner.x) return false ;
+    if(top_right_corner.y <= bottom_left_corner.y) return false ;
+
     KmzFile kmzfile ;
 
-    uint32_t total_map_W = (bottom_right_corner.x - top_left_corner.x) * mA.pixelsPerAngle();
-    uint32_t total_map_H = (bottom_right_corner.y - top_left_corner.y) * mA.pixelsPerAngle();
+    uint32_t total_map_W = top_right_corner.x - bottom_left_corner.x ;
+    uint32_t total_map_H = top_right_corner.y - bottom_left_corner.y ;
 
-    int n_tiles_x = (total_map_W + 1024)/1024;
-    int n_tiles_y = (total_map_H + 1024)/1024;
+    float tile_size = 1024 ;
 
-    float tile_angular_size = 1024 / mA.pixelsPerAngle();
+    int n_tiles_x = (total_map_W + tile_size)/tile_size;
+    int n_tiles_y = (total_map_H + tile_size)/tile_size;
 
     std::cerr << "  Total map resolution: " << total_map_W << " x " << total_map_H << " which means " << n_tiles_x << " x " << n_tiles_y << " tiles" << std::endl;
-    std::cerr << "  Tile angular size   : " << tile_angular_size << std::endl;
+    std::cerr << "  Tile size           : " << tile_size << std::endl;
 
     // 2 - re-sample each tile, write it into a file in a temporary directory
     int n=0;
@@ -93,23 +96,24 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& top_left_corner,const 
             MapDB::GPSCoord g1 ;
             MapDB::GPSCoord g2 ;
 
-            MapDB::ImageSpaceCoord top_left    (top_left_corner.x + (i+1) * tile_angular_size,top_left_corner.y +  j    * tile_angular_size);
-            MapDB::ImageSpaceCoord bottom_right(top_left_corner.x +  i    * tile_angular_size,top_left_corner.y + (j+1) * tile_angular_size);
+            MapDB::ImageSpaceCoord bottom_left(bottom_left_corner.x +  i    * tile_size,bottom_left_corner.y +  j    * tile_size);
+            MapDB::ImageSpaceCoord top_right  (bottom_left_corner.x + (i+1) * tile_size,bottom_left_corner.y + (j+1) * tile_size);
 
-            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(top_left,g1) ;
-            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(bottom_right,g2) ;
+            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(bottom_left,g1) ;
+            mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(top_right  ,g2) ;
 
+            std::cerr << "Extracting 1024x1024 tile " << i << "," << j << " : Lat: " << g2.lat << " -> " << g1.lat << " Lon: " << g1.lon << " -> " << g2.lon << std::endl;
+
+			ld.west_limit  = g1.lon;	// limits of the zone
 			ld.east_limit  = g2.lon;
-			ld.west_limit  = g1.lon;
-			ld.north_limit = g1.lat;	// limits of the zone
-			ld.south_limit = g2.lat;
+			ld.south_limit = g1.lat;
+			ld.north_limit = g2.lat;
 
 			ld.rotation = 0.0; 	// rotation angle of the zone
 
-			QImage img = mA.extractTile(top_left,bottom_right,1024,1024);
+			QImage img = mA.extractTile(bottom_left,top_right,1024,1024);
 
             ld.image_name = "image_data_" + QString::number(n,10,'0')+".jpg";
-
          	img.save(output_directory + "/" + ld.image_name,"JPEG");
 
             kmzfile.layers.push_back(ld);
