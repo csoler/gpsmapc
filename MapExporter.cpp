@@ -45,7 +45,7 @@ void KmzFile::writeToFile(const QString& fname) const
         o << "        <name>Layer " << i+1 << "</name>" << std::endl;
         o << "        <Icon>" << std::endl;
         o << "          <href>files/" << layers[i].image_name.toStdString() << "</href>" << std::endl;
-        o << "          <drawOrder>0<drawOrder>" << std::endl;
+        o << "          <drawOrder>50<drawOrder>" << std::endl;			// means the map will be drawn *on top* of the existing maps
         o << "        </Icon>" << std::endl;
         o << "        <LatLonBox>" << std::endl;
         o << "          <north>" << layers[i].north_limit << "</north>" << std::endl;

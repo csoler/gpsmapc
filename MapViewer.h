@@ -29,6 +29,7 @@ protected:
 	void computeAllPositions();
 	void addReferencePoint(QMouseEvent *e);
 	bool screenPositionToSingleImagePixelPosition(int px, int py, float &img_x, float &img_y, QString& image_filename);
+	void moveFromKeyboard(int key);
 
 	virtual void resizeEvent(QResizeEvent *) override;
 	virtual void wheelEvent(QWheelEvent *e) override;

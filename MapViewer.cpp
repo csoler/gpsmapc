@@ -219,6 +219,12 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 	case Qt::Key_S: if(!mSelectedImage.isNull())
             			mLastSelectedImage = mSelectedImage;
                     updateGL();
+
+    case Qt::Key_Down:
+    case Qt::Key_Up:
+    case Qt::Key_Right:
+    case Qt::Key_Left: moveFromKeyboard(e->key());
+        				updateGL();
         break;
     default:
         QGLViewer::keyPressEvent(e);
@@ -596,6 +602,11 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
 #endif
 	}
 	QGLViewer::mousePressEvent(e) ;
+}
+
+void MapViewer::moveFromKeyboard(int key)
+{
+ 	std::cerr << __PRETTY_FUNCTION__ << ": not implemented." << std::endl;
 }
 
 void MapViewer::mouseMoveEvent(QMouseEvent *e)
