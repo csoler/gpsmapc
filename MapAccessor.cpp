@@ -75,11 +75,11 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
             MapDB::ImageSpaceCoord c ;
 
             c.x = bottom_left.x + i/(float)W*(top_right.x - bottom_left.x);
-            c.y = bottom_left.y + j/(float)W*(top_right.y - bottom_left.y);
+            c.y = bottom_left.y + j/(float)H*(top_right.y - bottom_left.y);
 
             if(! findImagePixel(c,images,img_x,img_y,filename))
             {
-                img.setPixelColor(i,j,QRgb(0));
+                img.setPixelColor(i,H-1-j,QRgb(0));
                 continue;
             }
 
