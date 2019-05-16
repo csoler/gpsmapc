@@ -21,11 +21,11 @@ QColor MapRegistration::interpolated_image_color(const unsigned char *data,int W
     float di = i - I;
     float dj = j - J;
 
-    int index = i+W*j ;
+    int index = I+W*J ;
 
-    int r = ((1-di)*((1-dj)*data[3*(index+0+0) + 0] + dj*data[3*(index+0+W) + 0]) + di*((1-dj)*data[3*(index+1+0) + 0] + dj*data[3*(index+1+W) + 0]));
-    int g = ((1-di)*((1-dj)*data[3*(index+0+0) + 1] + dj*data[3*(index+0+W) + 1]) + di*((1-dj)*data[3*(index+1+0) + 1] + dj*data[3*(index+1+W) + 1]));
-    int b = ((1-di)*((1-dj)*data[3*(index+0+0) + 2] + dj*data[3*(index+0+W) + 2]) + di*((1-dj)*data[3*(index+1+0) + 2] + dj*data[3*(index+1+W) + 2]));
+    int r = (1-di)*((1-dj)*data[4*(index+0+0) + 2] + dj*data[4*(index+0+W) + 2]) + di*((1-dj)*data[4*(index+1+0) + 2] + dj*data[4*(index+1+W) + 2]);
+    int g = (1-di)*((1-dj)*data[4*(index+0+0) + 1] + dj*data[4*(index+0+W) + 1]) + di*((1-dj)*data[4*(index+1+0) + 1] + dj*data[4*(index+1+W) + 1]);
+    int b = (1-di)*((1-dj)*data[4*(index+0+0) + 0] + dj*data[4*(index+0+W) + 0]) + di*((1-dj)*data[4*(index+1+0) + 0] + dj*data[4*(index+1+W) + 0]);
 
     return QColor(r,g,b);
 }
@@ -38,12 +38,12 @@ float MapRegistration::interpolated_image_intensity(const unsigned char *data,in
     float di = i - I;
     float dj = j - J;
 
-    int index = i+W*j ;
+    int index = I+W*J ;
 
-    float d_00 = 0.30 * data[3*(index+0+0) + 0] + 0.59 * data[3*(index+0+0) + 1] + 0.11 * data[3*(index+0+0)+2] ;
-    float d_10 = 0.30 * data[3*(index+1+0) + 0] + 0.59 * data[3*(index+1+0) + 1] + 0.11 * data[3*(index+1+0)+2] ;
-    float d_11 = 0.30 * data[3*(index+1+W) + 0] + 0.59 * data[3*(index+1+W) + 1] + 0.11 * data[3*(index+1+W)+2] ;
-    float d_01 = 0.30 * data[3*(index+0+W) + 0] + 0.59 * data[3*(index+0+W) + 1] + 0.11 * data[3*(index+0+W)+2] ;
+    float d_00 = 0.30 * data[4*(index+0+0) + 2] + 0.59 * data[4*(index+0+0) + 1] + 0.11 * data[4*(index+0+0)+0] ;
+    float d_10 = 0.30 * data[4*(index+1+0) + 2] + 0.59 * data[4*(index+1+0) + 1] + 0.11 * data[4*(index+1+0)+0] ;
+    float d_11 = 0.30 * data[4*(index+1+W) + 2] + 0.59 * data[4*(index+1+W) + 1] + 0.11 * data[4*(index+1+W)+0] ;
+    float d_01 = 0.30 * data[4*(index+0+W) + 2] + 0.59 * data[4*(index+0+W) + 1] + 0.11 * data[4*(index+0+W)+0] ;
 
     return ((1-di)*((1-dj)*d_00 + dj*d_01) + di*((1-dj)*d_10 + dj*d_11))/255.0 ;
 }

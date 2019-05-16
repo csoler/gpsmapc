@@ -69,7 +69,7 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
 	float img_x,img_y;
 
     for(int i=0;i<W;++i)
-        for(int j=0;j<H;++j)
+       for(int j=0;j<H;++j)
         {
             QString filename ;
             MapDB::ImageSpaceCoord c ;
@@ -86,13 +86,7 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
             int tmp_W,tmp_H;
             const unsigned char *data = getPixelData(filename,tmp_W,tmp_H);
 
-           // if(last_image_loaded != filename)
-           // {
-           //     last_image_loaded = filename ;
-           //     current_image = QImage(mapDB().rootDirectory()+"/"+filename);
-           // }
-
-            img.setPixelColor(i,j,MapRegistration::interpolated_image_color(data,tmp_W,tmp_H,img_x,img_y));
+            img.setPixelColor(i,H-1-j,MapRegistration::interpolated_image_color(data,tmp_W,tmp_H,img_x,img_y));
         }
 
     return img;
@@ -109,9 +103,10 @@ const unsigned char *MapAccessor::getPixelData(const QString& filename,int& W,in
         return it->second.bits() ;
     }
 
-    std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
-
     QImage img = getImageData(filename);
+
+    std::cerr << "Loading/caching image data for file " << filename.toStdString() << ", format=" << img.format() << std::endl;
+
     W=img.width();
     H=img.height();
     mImageCache[filename] = img;
