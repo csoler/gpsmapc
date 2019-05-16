@@ -77,7 +77,11 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
             c.x = bottom_left.x + i/(float)W*(top_right.x - bottom_left.x);
             c.y = bottom_left.y + j/(float)W*(top_right.y - bottom_left.y);
 
-            findImagePixel(c,images,img_x,img_y,filename) ;
+            if(! findImagePixel(c,images,img_x,img_y,filename))
+            {
+                img.setPixelColor(i,j,QRgb(0));
+                continue;
+            }
 
             int tmp_W,tmp_H;
             const unsigned char *data = getPixelData(filename,tmp_W,tmp_H);
@@ -91,7 +95,7 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
             img.setPixelColor(i,j,MapRegistration::interpolated_image_color(data,tmp_W,tmp_H,img_x,img_y));
         }
 
-    return QImage();
+    return img;
 }
 
 const unsigned char *MapAccessor::getPixelData(const QString& filename,int& W,int& H) const

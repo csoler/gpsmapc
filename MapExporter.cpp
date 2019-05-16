@@ -1,4 +1,6 @@
 #include <fstream>
+#include <QImageWriter>
+#include <QUrl>
 
 #include "MapDB.h"
 #include "config.h"
@@ -102,8 +104,6 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
             mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(bottom_left,g1) ;
             mA.mapDB().imageSpaceCoordinatesToGPSCoordinates(top_right  ,g2) ;
 
-            std::cerr << "Extracting 1024x1024 tile " << i << "," << j << " : Lat: " << g2.lat << " -> " << g1.lat << " Lon: " << g1.lon << " -> " << g2.lon << std::endl;
-
 			ld.west_limit  = g1.lon;	// limits of the zone
 			ld.east_limit  = g2.lon;
 			ld.south_limit = g1.lat;
@@ -113,9 +113,13 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
 
 			QImage img = mA.extractTile(bottom_left,top_right,1024,1024);
 
-            ld.image_name = "image_data_" + QString::number(n,10,'0')+".jpg";
-         	img.save(output_directory + "/" + ld.image_name,"JPEG");
+            std::cerr << "Extracted " << img.width() << " x " << img.height() << " tile " << i << "," << j << " : Lat: " << g2.lat << " -> " << g1.lat << " Lon: " << g1.lon << " -> " << g2.lon << std::endl;
 
+            ld.image_name = QString("image_data_%1.jpg").arg(static_cast<int>(n),4,10,QChar('0'));
+            QString path = QUrl("file://"+ output_directory + "/" + ld.image_name).path();
+
+            if(! img.save(path,"jpg"))
+                std::cerr << "ERROR: Cannot save file " << path.toStdString() << std::endl;
             kmzfile.layers.push_back(ld);
 		}
 
