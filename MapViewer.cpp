@@ -349,6 +349,8 @@ void MapViewer::draw()
 
 		glColor3f(1,1,1);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glAlphaFunc(GL_GREATER,0.5);
+        glEnable(GL_ALPHA_TEST);
 
 		glBegin(GL_QUADS);
 
@@ -435,6 +437,10 @@ void MapViewer::draw()
 
 	for(int i=0;i<mMA->mapDB().numberOfReferencePoints();++i)
 	{
+        glLineWidth(3.0);
+        glDisable(GL_BLEND);
+        glDisable(GL_LINE_SMOOTH);
+
 		const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
 		MapDB::RegisteredImage img;
 
@@ -518,7 +524,8 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
 
 		glEnable(GL_TEXTURE_2D);
-		glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.texture_data);
+        glEnable(GL_BLEND);
+		glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.texture_data);
 		glDisable(GL_TEXTURE_2D);
 
 		CHECK_GL_ERROR();

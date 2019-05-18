@@ -1,6 +1,7 @@
 #include <fstream>
 #include <QImageWriter>
 #include <QUrl>
+#include <QDir>
 
 #include "MapDB.h"
 #include "config.h"
@@ -79,6 +80,12 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
     uint32_t total_map_W = top_right_corner.x - bottom_left_corner.x ;
     uint32_t total_map_H = top_right_corner.y - bottom_left_corner.y ;
 
+    if(!QDir(output_directory).mkdir("files"))
+    {
+        std::cerr << "Cannot create directory " << (output_directory+"/files/").toStdString() << std::endl;
+        return false;
+    }
+
     float tile_size = 1024 ;
 
     int n_tiles_x = (total_map_W + tile_size)/tile_size;
@@ -116,16 +123,30 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
             std::cerr << "Extracted " << img.width() << " x " << img.height() << " tile " << i << "," << j << " : Lat: " << g2.lat << " -> " << g1.lat << " Lon: " << g1.lon << " -> " << g2.lon << std::endl;
 
             ld.image_name = QString("image_data_%1.jpg").arg(static_cast<int>(n),4,10,QChar('0'));
-            QString path = QUrl("file://"+ output_directory + "/" + ld.image_name).path();
+            QString path = QUrl("file://"+ output_directory + "/files/" + ld.image_name).path();
 
             if(! img.save(path,"jpg"))
                 std::cerr << "ERROR: Cannot save file " << path.toStdString() << std::endl;
+
             kmzfile.layers.push_back(ld);
 		}
 
     // 3 - make the zip file
 
     kmzfile.writeToFile(output_directory + "/doc.kml");
+
+    // also export a global view of the entire zone
+
+    int ww = top_right_corner.x - bottom_left_corner.x ;
+    int hh = top_right_corner.y - bottom_left_corner.y ;
+
+    if(ww > 2048) { hh *= 2048/(float)ww ; ww  = 2048; }
+    if(hh > 2048) { ww *= 2048/(float)hh ; hh  = 2048; }
+
+	QImage img = mA.extractTile(bottom_left_corner,top_right_corner,ww,hh);
+
+	if(! img.save(output_directory+".jpg","jpg"))
+		std::cerr << "ERROR: Cannot save file " << (output_directory+".jpg").toStdString() << std::endl;
 
     return true;
 }
