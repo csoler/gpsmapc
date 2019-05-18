@@ -1,6 +1,7 @@
 #include <values.h>
 #include <iostream>
 
+#include <QApplication>
 #include <QFile>
 #include <QTextStream>
 #include <QtXml>
@@ -41,10 +42,15 @@ bool MapDB::init()
         mTopRight.x = -FLT_MAX;
         mTopRight.y = -FLT_MAX;
 
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+        QCoreApplication::processEvents();
+
 		loadDB(mRootDirectory);
         checkDirectory(mRootDirectory) ;
 
         std::cerr << "Database read. Top left corner: " << mBottomLeft << ", Bottom right corner: " << mTopRight << std::endl;
+
+		QApplication::setOverrideCursor(Qt::ArrowCursor);
 
         if(mMapChanged)
             saveDB(mRootDirectory);

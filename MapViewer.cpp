@@ -1,8 +1,12 @@
 #include <GL/glut.h>
+
+#include <QApplication>
 #include <QMimeData>
 #include <QToolTip>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QCoreApplication>
+#include <QProgressBar>
 
 #include "MapAccessor.h"
 #include "MapViewer.h"
@@ -238,6 +242,14 @@ void MapViewer::resizeEvent(QResizeEvent *e)
     QGLViewer::resizeEvent(e);
 }
 
+static void progress_callback(float f,void *data)
+{
+    QProgressBar *bar = static_cast<QProgressBar*>(data);
+    bar->setValue(f*100);
+
+    QCoreApplication::processEvents();
+}
+
 void MapViewer::exportMap()
 {
     QString dir_name = QFileDialog::getSaveFileName(NULL,"Please choose a new directory name to create the export.",".","Directories (*)",NULL,QFileDialog::ShowDirsOnly);
@@ -251,16 +263,30 @@ void MapViewer::exportMap()
 //        return;
 //    }
 
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    QCoreApplication::processEvents();
+
+    QProgressBar prog ;
+    prog.setMinimum(0);
+    prog.setMaximum(100);
+    prog.setValue(0);
+    prog.show();
+
+    QCoreApplication::processEvents();
+
     QDir::current().mkdir(dir_name);
     MapDB::ImageSpaceCoord bottom_left_corner,top_right_corner;
 
     screenCoordinatesToImageSpaceCoordinates(0,height()-1,bottom_left_corner);
     screenCoordinatesToImageSpaceCoordinates(width()-1,0,top_right_corner);
 
- 	if(!MapExporter(*mMA).exportMap(bottom_left_corner,top_right_corner, dir_name))
+ 	if(!MapExporter(*mMA).exportMap(bottom_left_corner,top_right_corner, dir_name,progress_callback,&prog))
         return;
 
-    QMessageBox::information(NULL,"Export finished","<p>Your map is exported in Garmin kmz format in directory " +dir_name +".<br/>You can now zip it and export it to your Garmin device.</p>");
+    system(QString("cd %1;zip -r %1.kmz *").arg(dir_name).toStdString().c_str());
+
+    QApplication::setOverrideCursor(Qt::ArrowCursor);
+    QMessageBox::information(NULL,"Export finished","<p>Your map is exported in Garmin kmz format in file " +dir_name +"kmz.<br/>You can now export it to your Garmin device.</p>");
 }
 
 static void checkGLError(const std::string& place,uint32_t line)

@@ -64,13 +64,15 @@ void KmzFile::writeToFile(const QString& fname) const
     o.close();
 }
 
-bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,const MapDB::ImageSpaceCoord& top_right_corner,const QString& output_directory)
+bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,const MapDB::ImageSpaceCoord& top_right_corner,const QString& output_directory,void (*progress)(float,void*),void *data)
 {
     std::cerr << "Exporting map to Kmz file. Bottom left: " << bottom_left_corner << ", top right: " << top_right_corner << std::endl;
 
     // 1 - determine how many tiles we need using the following constraints:
     //     	* each tile should be 1024x1024 at most
     //		* the map accessor will teel us what is the approximate virtual resolution of the window
+
+	progress(0.0,data);
 
     if(top_right_corner.x <= bottom_left_corner.x) return false ;
     if(top_right_corner.y <= bottom_left_corner.y) return false ;
@@ -100,6 +102,8 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
     for(int i=0;i<n_tiles_x;++i)
         for(int j=0;j<n_tiles_y;++j,++n)
 		{
+            progress((j + i*n_tiles_y)/float(n_tiles_x*n_tiles_y),data);
+
 			KmzFile::LayerData ld ;
 
             MapDB::GPSCoord g1 ;
@@ -148,6 +152,7 @@ bool MapExporter::exportMap(const MapDB::ImageSpaceCoord& bottom_left_corner,con
 	if(! img.save(output_directory+".jpg","jpg"))
 		std::cerr << "ERROR: Cannot save file " << (output_directory+".jpg").toStdString() << std::endl;
 
+	progress(1.0,data);
     return true;
 }
 
