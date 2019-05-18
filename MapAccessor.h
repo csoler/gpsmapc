@@ -49,7 +49,7 @@ class MapAccessor
 
         const MapDB& mapDB() const { return mDb ; }
 
-		static bool findImagePixel(const MapDB::ImageSpaceCoord& is,const std::vector<MapAccessor::ImageData>& images,float& img_x,float& img_y,QString& image_filename);
+		bool findImagePixel(const MapDB::ImageSpaceCoord& is, const std::vector<MapAccessor::ImageData>& images, float& img_x, float& img_y, QString& image_filename);
 
 	private:
 		const unsigned char *getPixelDataForTextureUsage(const QString& filename, int &W, int &H) const;
@@ -60,5 +60,6 @@ class MapAccessor
 		MapDB& mDb;
         mutable std::map<QString,QImage> mImageTextureCache ;
         mutable std::map<QString,QImage> mImageCache ;
+        mutable QImage mImageMask;
 };
 

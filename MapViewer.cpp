@@ -280,7 +280,7 @@ void MapViewer::draw()
 		mSliceUpdateNeeded = false ;
 	}
 
-	glClearColor(0,0,0,0) ;
+	glClearColor(0,0,0,1) ;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) ;
 
 	glDisable(GL_DEPTH_TEST) ;
@@ -343,6 +343,9 @@ void MapViewer::draw()
 
 		glBindTexture(GL_TEXTURE_2D,tex_id);
 		CHECK_GL_ERROR();
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
 		glColor3f(1,1,1);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -463,6 +466,10 @@ void MapViewer::draw()
 
     if(mShowExportGrid)
 	{
+        glLineWidth(3.0);
+        glDisable(GL_BLEND);
+        glDisable(GL_LINE_SMOOTH);
+
 		MapDB::ImageSpaceCoord top_left_corner,bottom_right_corner;
 
 		screenCoordinatesToImageSpaceCoordinates(0,0,top_left_corner);
@@ -511,7 +518,7 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R    , GL_CLAMP);
 
 		glEnable(GL_TEXTURE_2D);
-		glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.texture_data);
+		glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,img_data.texture_data);
 		glDisable(GL_TEXTURE_2D);
 
 		CHECK_GL_ERROR();
@@ -613,10 +620,12 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 {
     if(mMoving)
     {
+		float factor = (e->modifiers() & Qt::ShiftModifier)?0.25:1.0;
+
         if(mMovingSelected)
         {
-        	float delta_lon = - (e->x() - mLastX) * mViewScale / width() ;
-        	float delta_lat =   (e->y() - mLastY) * mViewScale / width() ;
+        	float delta_lon = - (e->x() - mLastX) * mViewScale / width() * factor;
+        	float delta_lat =   (e->y() - mLastY) * mViewScale / width() * factor;
 
             mMA->moveImage(mSelectedImage,-delta_lon,-delta_lat);
 
@@ -627,8 +636,8 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
             return;
         }
 
-        mCenter.x -= (e->x() - mLastX) * mViewScale / width() ;
-        mCenter.y += (e->y() - mLastY) * mViewScale / width() ;
+        mCenter.x -= (e->x() - mLastX) * mViewScale / width() * factor;
+        mCenter.y += (e->y() - mLastY) * mViewScale / width() * factor;
 #ifdef DEBUG
         std::cerr << "Current x=" << e->x() << ", New center = " << mCenter << " mLastX=" << mLastX << " delta = " << e->x() - mLastX << ", " << e->y() - mLastY << std::endl;
 #endif
@@ -680,10 +689,12 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 
 void MapViewer::wheelEvent(QWheelEvent *e)
 {
+    float factor = (e->modifiers() & Qt::ShiftModifier)?1.005:1.05;
+
 	if(e->delta() > 0)
-		mViewScale *= 1.05 ;
+		mViewScale *= factor;
 	else
-		mViewScale /= 1.05 ;
+		mViewScale /= factor;
 
 	displayMessage("Image scale: "+QString::number(mViewScale)) ;
 

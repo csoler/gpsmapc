@@ -57,6 +57,7 @@ class MapDB
         // accessor methods
 
         const QString& rootDirectory() const { return mRootDirectory; }
+        const QString& imagesMaskFilename() const { return mImagesMask; }
 
         const ImageSpaceCoord& bottomLeftCorner() const { return mBottomLeft ; }
         const ImageSpaceCoord& topRightCorner() const { return mTopRight ; }
@@ -90,6 +91,8 @@ class MapDB
         // actual map data
 
 		std::map<QString,MapDB::RegisteredImage> mImages ;
+
+        QString mImagesMask ;
 
         ImageSpaceCoord mBottomLeft ;
         ImageSpaceCoord mTopRight ;

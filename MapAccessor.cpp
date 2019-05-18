@@ -1,3 +1,4 @@
+#include <math.h>
 #include <iostream>
 #include <QImage>
 
@@ -24,7 +25,7 @@ void MapAccessor::getImagesToDraw(const MapDB::ImageSpaceCoord& mBottomLeftViewC
         id.filename        = it->first ;
 
         int tmp_W,tmp_H;
-        id.texture_data      = getPixelDataForTextureUsage(id.directory + "/" + id.filename,tmp_W,tmp_H);
+        id.texture_data    = getPixelDataForTextureUsage(id.directory + "/" + id.filename,tmp_W,tmp_H);
         id.descriptors     = it->second.descriptors;
 
         images_to_draw.push_back(id);
@@ -45,14 +46,23 @@ bool MapAccessor::findImagePixel(const MapDB::ImageSpaceCoord& is,const std::vec
 {
 	for(int i=images.size()-1;i>=0;--i)
         if(	       images[i].bottom_left_corner.x               <= is.x
-                && images[i].bottom_left_corner.x + images[i].W >= is.x
+                && images[i].bottom_left_corner.x + images[i].W >  is.x
                 && images[i].bottom_left_corner.y               <= is.y
-                && images[i].bottom_left_corner.y + images[i].H >= is.y )
+                && images[i].bottom_left_corner.y + images[i].H >  is.y )
 		{
 			image_filename = images[i].filename;
 
             img_x = is.x - images[i].bottom_left_corner.x;
             img_y = images[i].H - 1 - (is.y - images[i].bottom_left_corner.y);
+
+            int X = (int)floor(img_x) ;
+            int Y = (int)floor(img_y) ;
+
+            if(X < 0 || X >= images[i].W || Y < 0 || Y >= images[i].H)
+                continue;
+
+            if(mImageMask.width() == images[i].W && mImageMask.height() == images[i].H && mImageMask.pixel(X,Y) == 0)
+                continue;
 
             return true;
 		}
@@ -122,7 +132,25 @@ const unsigned char *MapAccessor::getPixelDataForTextureUsage(const QString& fil
 
     std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
 
-    mImageTextureCache[filename] = QImage(filename).scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
+	QImage image(filename);
+
+    if(mImageMask.width()==0 && !mDb.imagesMaskFilename().isNull())
+    {
+        mImageMask = QImage(mDb.rootDirectory() + "/" + mDb.imagesMaskFilename());//.createAlphaMask(Qt::AutoColor);
+    	//mImageMask.invertPixels(QImage::InvertRgba);
+    }
+
+    if(mImageMask.width() == image.width() || mImageMask.height() == image.height())
+        image.setAlphaChannel(mImageMask);
+
+    // static bool toto=false;
+    // if(!toto)
+    // {
+    //     image.save("toto.png");
+    //     toto=true;
+    // }
+
+    mImageTextureCache[filename] = image.scaled(1024,1024,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).rgbSwapped() ;
     W = H = 1024;
 
     return mImageTextureCache[filename].bits();

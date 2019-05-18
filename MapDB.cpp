@@ -171,7 +171,14 @@ void MapDB::checkDirectory(const QString& source_directory)
     std::cerr << "Now scanning source directory \"" << source_directory.toStdString() << "\"" << std::endl;
 
     for(uint32_t i=0;i<dir.count();++i)
-		if(dir[i].endsWith(".jpg"))
+    {
+        if(dir[i] == "mask.png")
+        {
+            std::cerr << "  Found image mask file " << dir[i].toStdString() ;
+
+            mImagesMask = dir[i];
+        }
+		else if(dir[i].endsWith(".jpg"))
         {
             std::cerr << "  Checking image file " << dir[i].toStdString() ;
             auto it = mImages.find(dir[i]);
@@ -194,6 +201,10 @@ void MapDB::checkDirectory(const QString& source_directory)
             else
                 std::cerr << "  already in the database. Coordinates: " << it->second.bottom_left_corner << std::endl;
         }
+    }
+
+    if(mImagesMask.isNull())
+        std::cerr << "No mask image found. If you want to add one, name is mask.png.";
 
     mMapChanged = false;
 }
