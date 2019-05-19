@@ -6,7 +6,7 @@
 class MapAccessor
 {
 	public:
-		MapAccessor(MapDB& mdb) : mDb(mdb) {}
+		MapAccessor(MapDB& mdb) ;
 
         struct ImageData
         {
@@ -24,6 +24,7 @@ class MapAccessor
         void getImagesToDraw(const MapDB::ImageSpaceCoord &mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<MapAccessor::ImageData>& images_to_draw) const;
         QImage getImageData(const QString& image_filename) const;
 		bool getImageParams(const QString& image_filename, MapDB::RegisteredImage &img);
+        const QImage& imageMask() const { return mImageMask ;}
 
         void setReferencePoint(const QString& image_name, int point_x, int point_y) ;
         /*!

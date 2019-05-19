@@ -4,6 +4,13 @@
 
 #include "MapAccessor.h"
 
+MapAccessor::MapAccessor(MapDB& m) : mDb(m)
+{
+    if(!mDb.imagesMaskFilename().isNull())
+        mImageMask = QImage(mDb.rootDirectory() + "/" + mDb.imagesMaskFilename());//.createAlphaMask(Qt::AutoColor);
+}
+
+
 void MapAccessor::getImagesToDraw(const MapDB::ImageSpaceCoord& mBottomLeftViewCorner, const MapDB::ImageSpaceCoord& mTopRightViewCorner, std::vector<ImageData> &images_to_draw) const
 {
     // For now, just dont be subtle: return all known images.
@@ -133,12 +140,6 @@ const unsigned char *MapAccessor::getPixelDataForTextureUsage(const QString& fil
     std::cerr << "Loading/caching image data for file " << filename.toStdString() << std::endl;
 
 	QImage image(filename);
-
-    if(mImageMask.width()==0 && !mDb.imagesMaskFilename().isNull())
-    {
-        mImageMask = QImage(mDb.rootDirectory() + "/" + mDb.imagesMaskFilename());//.createAlphaMask(Qt::AutoColor);
-    	//mImageMask.invertPixels(QImage::InvertRgba);
-    }
 
     if(mImageMask.width() == image.width() || mImageMask.height() == image.height())
         image.setAlphaChannel(mImageMask);

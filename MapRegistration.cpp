@@ -48,7 +48,7 @@ float MapRegistration::interpolated_image_intensity(const unsigned char *data,in
     return ((1-di)*((1-dj)*d_00 + dj*d_01) + di*((1-dj)*d_10 + dj*d_11))/255.0 ;
 }
 
-void  MapRegistration::findDescriptors(const std::string& image_filename,std::vector<MapRegistration::ImageDescriptor>& descriptors)
+void  MapRegistration::findDescriptors(const std::string& image_filename,const QImage& mask,std::vector<MapRegistration::ImageDescriptor>& descriptors)
 {
     cv::Mat img = cv::imread( image_filename.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
 
@@ -75,12 +75,13 @@ void  MapRegistration::findDescriptors(const std::string& image_filename,std::ve
         desc.pixel_radius = keypoints[i].size/2.0;
         desc.variance = keypoints[i].response;
 
-        descriptors.push_back(desc);
+        if(mask.width() == 0 || mask.height() == 0 || mask.pixel(desc.x,desc.y) != 0)
+			descriptors.push_back(desc);
     }
 }
 
 
-static bool computeTransform(const std::vector<cv::KeyPoint>& keypoints1,const std::vector<cv::KeyPoint>& keypoints2,const cv::Mat& descriptors_1,const cv::Mat& descriptors_2,float& dx,float& dy,bool verbose=false)
+static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>& keypoints1,const std::vector<cv::KeyPoint>& keypoints2,const cv::Mat& descriptors_1,const cv::Mat& descriptors_2,float& dx,float& dy,bool verbose=false)
 {
 	//-- Step 2: Matching descriptor vectors using FLANN matcher
 	cv::FlannBasedMatcher matcher;
@@ -111,18 +112,24 @@ static bool computeTransform(const std::vector<cv::KeyPoint>& keypoints1,const s
 	{
 		float delta_x,delta_y ;
 
-		if( matches[i].distance <= std::max(2*min_dist, 0.10) )
-		{
-			int i1 = matches[i].queryIdx ;
-			int i2 = matches[i].trainIdx ;
+		int i1 = matches[i].queryIdx ;
+		int i2 = matches[i].trainIdx ;
 
+		if( mask.width() !=0 && mask.height()!=0 && mask.pixel((int)keypoints1[i1].pt.x,(int)keypoints1[i1].pt.y)==0)
+            continue;
+		if( mask.width() !=0 && mask.height()!=0 && mask.pixel((int)keypoints2[i2].pt.x,(int)keypoints2[i2].pt.y)==0)
+            continue;
+
+		if( matches[i].distance <= std::max(2*min_dist, 0.10) )
 			good_matches.push_back( cv::Point2f(keypoints2[i2].pt.x  - keypoints1[i1].pt.x, keypoints2[i2].pt.y  - keypoints1[i1].pt.y) );
-		}
 	}
 
 	// Now perform k-means clustering to find the transformation clusters.
 
 	std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
+
+    if(good_matches.size() < 3)
+        return false;
 
 	int clusterCount = 3;
 	cv::Mat labels;
@@ -192,7 +199,7 @@ static bool computeTransform(const std::vector<cv::KeyPoint>& keypoints1,const s
 	return true;
 }
 
-bool MapRegistration::computeRelativeTransform(const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
+bool MapRegistration::computeRelativeTransform(const QImage& mask,const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
 {
 	cv::Mat img1 = cv::imread( image_filename1.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
 	if( !img1.data ) throw std::runtime_error("Cannot reading image " + image_filename1);
@@ -210,10 +217,10 @@ bool MapRegistration::computeRelativeTransform(const std::string& image_filename
 	detector.detectAndCompute( img1, cv::Mat(), keypoints1, descriptors_1 );
 	detector.detectAndCompute( img2, cv::Mat(), keypoints2, descriptors_2 );
 
-    return computeTransform(keypoints1,keypoints2,descriptors_1,descriptors_2,dx,dy,true);
+    return computeTransform(mask,keypoints1,keypoints2,descriptors_1,descriptors_2,dx,dy,true);
 }
 
-bool MapRegistration::computeAllImagesPositions(const std::vector<std::string>& image_filenames,std::vector<std::pair<float,float> >& top_left_corners)
+bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::vector<std::string>& image_filenames,std::vector<std::pair<float,float> >& top_left_corners)
 {
     if(image_filenames.empty())
         return false ;
@@ -262,7 +269,7 @@ bool MapRegistration::computeAllImagesPositions(const std::vector<std::string>& 
                 {
                     std::cerr << "  testing " << i << " vs. " << j << std::endl;
 
-					if(has_coords[j] && computeTransform(keypoints[j],keypoints[i],descriptors[j],descriptors[i],delta_x,delta_y))
+					if(has_coords[j] && computeTransform(mask,keypoints[j],keypoints[i],descriptors[j],descriptors[i],delta_x,delta_y))
 					{
                         std::cerr << "Found new coordinates for image " << i << " w.r.t. image " << j << ": delta=" << delta_x << ", " << delta_y << std::endl;
 						top_left_corners[i] = std::make_pair(top_left_corners[j].first - delta_x, top_left_corners[j].second + delta_y);

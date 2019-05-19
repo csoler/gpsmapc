@@ -330,7 +330,7 @@ void MapDB::recomputeDescriptors(const QString& image_filename)
     std::cerr << "Computing descriptors for image " << image_filename.toStdString() << "..." << std::endl;
 
     //MapRegistration::findDescriptors(image.bits(),it->second.W,it->second.H,it->second.descriptors);
-    MapRegistration::findDescriptors( (mRootDirectory+"/"+image_filename).toStdString(),it->second.descriptors);
+    MapRegistration::findDescriptors( (mRootDirectory+"/"+image_filename).toStdString(),QImage(mRootDirectory+"/mask.png"),it->second.descriptors);
 }
 
 bool MapDB::getImageParams(const QString& image_filename,MapDB::RegisteredImage& img) const

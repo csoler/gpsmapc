@@ -776,7 +776,7 @@ void MapViewer::computeRelatedTransform()
 
     float dx,dy ;
 
-    if(! MapRegistration::computeRelativeTransform(mMA->fullPath(mSelectedImage).toStdString(),mMA->fullPath(mLastSelectedImage).toStdString(),dx,dy))
+    if(! MapRegistration::computeRelativeTransform(mMA->imageMask(),mMA->fullPath(mSelectedImage).toStdString(),mMA->fullPath(mLastSelectedImage).toStdString(),dx,dy))
     {
         std::cerr << "No valid transform found!" << std::endl;
         return;
@@ -807,7 +807,7 @@ void MapViewer::computeAllPositions()
     for(auto it(images_map.begin());it!=images_map.end();++it)
     	images_full_paths.push_back(mMA->fullPath(it->first).toStdString());
 
-	if(! MapRegistration::computeAllImagesPositions(images_full_paths,coords))
+	if(! MapRegistration::computeAllImagesPositions(mMA->imageMask(),images_full_paths,coords))
     {
         std::cerr << "No global transform found!" << std::endl;
         return;
