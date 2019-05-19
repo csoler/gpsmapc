@@ -540,8 +540,8 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
         ids[texture_filename] = tex_id ;
 
 		glBindTexture(GL_TEXTURE_2D,tex_id);
-		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-		glPixelStorei(GL_PACK_ALIGNMENT ,1);
+		glPixelStorei(GL_UNPACK_ALIGNMENT,4);
+		glPixelStorei(GL_PACK_ALIGNMENT ,4);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -557,6 +557,8 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 		CHECK_GL_ERROR();
 
         std::cerr << "Allocating new texture ID " << tex_id << " for texture " << texture_filename.toStdString() << std::endl;
+
+        return tex_id;
 	}
 	else
 		return it->second;
