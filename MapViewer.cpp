@@ -224,6 +224,9 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
             			mLastSelectedImage = mSelectedImage;
                     updateGL();
 
+    case Qt::Key_H: displayHelp();
+        break;
+
     case Qt::Key_Down:
     case Qt::Key_Up:
     case Qt::Key_Right:
@@ -233,6 +236,28 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
     default:
         QGLViewer::keyPressEvent(e);
     }
+}
+
+void MapViewer::displayHelp()
+{
+    QString text;
+
+    text += "The following keys are available:<br>";
+    text += "  Normal usage:<br>";
+    text += "    S: pin current image for later use<br/>";
+    text += "    T: automatically place current image over pinned image<br/>";
+    text += "    W: save current map<br/>";
+    text += "    B: hide/show images borders<br/>";
+    text += "    P: attempt to register all images together<br/>";
+    text += "    G: hide/show KMZ export tiles<br/>";
+    text += "    X: export current map to Garmin KMZ format<br/>";
+    text += "    Ctrl[+shift]+mouse: move images manually <br/>";
+    text += "    [shift]+mouse / wheel: move view<br/>";
+    text += "  Debug purpose:<br>";
+    text += "    D: compute/show descriptors for current image<br/>";
+    text += "    E: display/hide image descriptors<br/>";
+
+    QMessageBox::information(NULL,"Keys",text);
 }
 
 void MapViewer::resizeEvent(QResizeEvent *e)

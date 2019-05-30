@@ -19,6 +19,7 @@ protected:
 	void computeSlice();
 	void updateSlice();
 	void exportMap();
+	void displayHelp();
 
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
