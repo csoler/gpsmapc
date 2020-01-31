@@ -1,8 +1,7 @@
 IGNMapper
 =========
 
-This program allows to automatically assemble maps from screenshots of physical paper 
-maps in order to create GPS background maps in Garmin KMZ format.
+This program allows to automatically assemble maps in order to create GPS background maps in Garmin KMZ format.
 
 In order to use it:
 
@@ -19,9 +18,11 @@ e: show/hide descriptors computed with 'd'
 w: save the database (including image positions)
 
 ```
-4. Onces all images are consistency placed, add two control points by using Shift+left mouse click. Each new control point erase the oldest one. Good control points should be diagonaly placed over the full set of images to ensure maximal accuracy;
+Optionally, the program will load maps/mask.png and use it as a mask (white/transparent) to combine the images and remove unwanted features from the screenshots in the combined images.
+
+4. Onces all images are consistency placed, you need to add two control points by using Shift+left mouse click. Each new control point erases the oldest one. Good control points should be diagonaly placed over the full set of images to ensure maximal accuracy;
 5. save the map using 'w';
 6. edit the file maps/file_map.xml and set the real GPS coordinates of the two control points. 
-7. re-launch IGNMapper and hit 'g' to display the tile grid. Choose a proper view with less than 100 tiles and press 'x' to export a kmx file. 
+7. re-launch IGNMapper and hit 'g' to display the tile grid. Choose a proper view and window size (some GPS like GARMIN expect to find less than 100 tiles in custom maps) and press 'x' to export a kmz file. 
 
  
