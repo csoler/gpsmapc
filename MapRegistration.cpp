@@ -7,6 +7,7 @@
 #include "opencv_nonfree/surf.hpp"
 
 #include "opencv2/core/core.hpp"
+#include "opencv2/calib3d.hpp"
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
@@ -50,7 +51,7 @@ float MapRegistration::interpolated_image_intensity(const unsigned char *data,in
 
 void  MapRegistration::findDescriptors(const std::string& image_filename,const QImage& mask,std::vector<MapRegistration::ImageDescriptor>& descriptors)
 {
-    cv::Mat img = cv::imread( image_filename.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+    cv::Mat img = cv::imread( image_filename.c_str(), cv::IMREAD_GRAYSCALE );
 
 	if( !img.data )
 		throw std::runtime_error("Cannot reading image " + image_filename);
@@ -136,7 +137,7 @@ static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>&
 	int attempts = 5;
 	cv::Mat centers;
 
-	cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.01), attempts, cv::KMEANS_PP_CENTERS, centers );
+    cv::kmeans(good_matches, clusterCount, labels, cv::TermCriteria(cv::TermCriteria::EPS,10000, 0.01), attempts, cv::KMEANS_PP_CENTERS, centers );
 
     if(verbose)
 	{
@@ -201,10 +202,10 @@ static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>&
 
 bool MapRegistration::computeRelativeTransform(const QImage& mask,const std::string& image_filename1,const std::string& image_filename2,float& dx,float& dy)
 {
-	cv::Mat img1 = cv::imread( image_filename1.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+	cv::Mat img1 = cv::imread( image_filename1.c_str(), cv::IMREAD_GRAYSCALE);
 	if( !img1.data ) throw std::runtime_error("Cannot reading image " + image_filename1);
 
-	cv::Mat img2 = cv::imread( image_filename2.c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+	cv::Mat img2 = cv::imread( image_filename2.c_str(), cv::IMREAD_GRAYSCALE);
 	if( !img2.data ) throw std::runtime_error("Cannot reading image " + image_filename2);
 
     int minHessian = 30000;
@@ -235,7 +236,7 @@ bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::ve
     {
         std::cerr << "  computing keypoints for " << image_filenames[i] << std::endl;
 
-		cv::Mat img = cv::imread( image_filenames[i].c_str(), CV_LOAD_IMAGE_GRAYSCALE );
+		cv::Mat img = cv::imread( image_filenames[i].c_str(), cv::IMREAD_GRAYSCALE);
 
 		if( !img.data ) throw std::runtime_error("Cannot reading image " + image_filenames[i]);
 

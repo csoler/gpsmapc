@@ -1,7 +1,8 @@
 TEMPLATE = app
-CONFIG += qt uic
+CONFIG += qt uic link_pkgconfig
 QT = gui xml widgets opengl
 
+PKGCONFIG += opencv4
 QMAKE_CXXFLAGS *= -fopenmp
 LIBS *= -lgomp
 
@@ -12,6 +13,8 @@ HEADERS = MapDB.h MapAccessor.h MapGUIWindow.h MapViewer.h config.h \
     MapExporter.h \
     MapRegistration.h
 
+INCLUDEPATH += /usr/include/opencv4
+
 SOURCES += opencv_nonfree/surf.cpp
 HEADERS += opencv_nonfree/surf.hpp opencv_nonfree/cuda.hpp opencv_nonfree/nonfree.hpp opencv_nonfree/precomp.hpp opencv_nonfree/xfeatures2d.hpp
 
@@ -19,7 +22,7 @@ DEFINES += OPENCV_ENABLE_NONFREE
 
 FORMS =
 
-LIBS *= -lQGLViewer
+LIBS *= -lQGLViewer-qt5
 
 UI_DIR = .ui
 
