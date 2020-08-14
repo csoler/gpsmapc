@@ -223,6 +223,7 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
 	case Qt::Key_S: if(!mSelectedImage.isNull())
             			mLastSelectedImage = mSelectedImage;
                     updateGL();
+        break;
 
     case Qt::Key_H: displayHelp();
         break;
@@ -733,6 +734,7 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
                 displayText += "\n Lat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
 
 			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
+            std::cerr << displayText.toStdString() << std::endl;
 		}
 
 		//QToolTip::showText(QCursor::pos() + QPoint(20,20),displayText);

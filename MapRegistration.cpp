@@ -99,8 +99,12 @@ static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>&
 		if( dist < min_dist ) min_dist = dist;
 		if( dist > max_dist ) max_dist = dist;
 	}
-	printf("-- Max dist : %f \n", max_dist );
-	printf("-- Min dist : %f \n", min_dist );
+
+    if(verbose)
+    {
+        printf("-- Max dist : %f \n", max_dist );
+        printf("-- Min dist : %f \n", min_dist );
+    }
 
 	//-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
 	//-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
@@ -127,7 +131,8 @@ static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>&
 
 	// Now perform k-means clustering to find the transformation clusters.
 
-	std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
+    if(verbose)
+        std::cerr << "Found " << good_matches.size() << " good matches among " << matches.size() << std::endl;
 
     if(good_matches.size() < 3)
         return false;
@@ -246,12 +251,13 @@ bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::ve
 		detector.detectAndCompute( img, cv::Mat(), keypoints[i], descriptors[i] );
     }
 
+    top_left_corners.clear();
+    top_left_corners.resize(image_filenames.size(),std::make_pair(0.0,0.0));
+
+#ifdef OLD_CODE
     // now go through each image and try to match it to at least one image with known position
 
     std::vector<bool> has_coords(image_filenames.size(),false);
-
-    top_left_corners.clear();
-    top_left_corners.resize(image_filenames.size(),std::make_pair(0.0,0.0));
 
     has_coords[0] = true;
     int n=0;
@@ -283,9 +289,102 @@ bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::ve
                     finished = false;
 			}
 
-        if(finished || ++n > 200)
+        if(finished || ++n > 20)
             break;
     }
+#endif
+    // new global registration method:
+    //	1 - compute image graph based on matches.
+
+    struct NStruct
+    {
+        int j;
+        float delta_x;
+        float delta_y;
+    };
+
+    std::vector<std::list<NStruct> > neighbours(image_filenames.size());
+
+    for(int i=0;i<(int)image_filenames.size();++i)
+    {
+        for(int j=i+1;j<(int)image_filenames.size();++j)
+        {
+            // try to match to one of the previous images
+            float delta_x,delta_y;
+
+            if(computeTransform(mask,keypoints[j],keypoints[i],descriptors[j],descriptors[i],delta_x,delta_y))
+            {
+                std::cerr << " Image " << i << " is neighbour to image " << j << ": delta=" << delta_x << ", " << delta_y << std::endl;
+
+                NStruct S;
+                S.j = j;
+                S.delta_x = delta_x;
+                S.delta_y = delta_y;
+
+                neighbours[i].push_back(S);
+
+                // This needs to be done both ways. Otherwise the graph is not bi-connected and some deadends may appear in the algorithm below.
+
+                S.j = i;
+                S.delta_x = -delta_x;
+                S.delta_y = -delta_y;
+
+                neighbours[j].push_back(S);
+            }
+        }
+    }
+
+    //	2 - test consistency of translations between images: for each image
+
+    //	3 - test connexity, and compute connex components
+
+    int next = 0;
+    int nb_cnx_components = 0;
+    std::vector<bool> has_coords(image_filenames.size(),false);
+    float max_y = 0.0;
+
+    while(next >= 0)
+    {
+        std::cerr << "Starting connex component " << nb_cnx_components << " at point " << next << std::endl;
+
+        // Do the next connex component.
+
+        has_coords[next] = true;
+        top_left_corners[next] = std::make_pair(0,max_y + 50);
+        std::list<int> to_do = { next };
+
+        while(!to_do.empty())
+        {
+            int i = to_do.front();
+            to_do.pop_front();
+
+            std::cerr << "  popped i=" << i << " from the queue." << std::endl;
+
+            for(auto& S: neighbours[i])
+                if(!has_coords[S.j])
+                {
+                    top_left_corners[S.j] = std::make_pair(top_left_corners[i].first + S.delta_x, top_left_corners[i].second - S.delta_y);
+                    has_coords[S.j] = true;
+                    to_do.push_back(S.j);
+
+                    max_y = std::max(max_y,top_left_corners[S.j].second - mask.height());
+
+                    std::cerr << "    pushing j=" << S.j << " to the queue with coordinates " << top_left_corners[S.j].first << " , " << top_left_corners[S.j].second << std::endl;
+                }
+        }
+        ++nb_cnx_components;
+
+        next = -1;
+
+        for(int i=0;i<(int)image_filenames.size();++i)
+            if(!has_coords[i])
+            {
+                next=i;
+                break;
+            }
+    }
+
+    std::cerr << "Number of connex components: " << nb_cnx_components << std::endl;
     return true;
 }
 
