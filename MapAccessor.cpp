@@ -103,7 +103,7 @@ QImage MapAccessor::extractTile(const MapDB::ImageSpaceCoord& bottom_left, const
             int tmp_W,tmp_H;
             const unsigned char *data = getPixelData(filename,tmp_W,tmp_H);
 
-            img.setPixelColor(i,H-1-j,MapRegistration::interpolated_image_color(data,tmp_W,tmp_H,img_x,img_y));
+            img.setPixelColor(i,H-1-j,MapRegistration::interpolated_image_color_ABGR(data,tmp_W,tmp_H,img_x,img_y));
         }
 
     return img;

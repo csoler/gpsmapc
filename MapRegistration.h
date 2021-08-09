@@ -23,7 +23,8 @@ public:
  	static bool computeRelativeTransform(const QImage &mask, const std::string& image_filename1, const std::string& image_filename2, float &dx, float &dy);
 	static bool computeAllImagesPositions(const QImage& mask,const std::vector<std::string>& image_filenames,std::vector<std::pair<float,float> >& top_left_corners);
 	static float interpolated_image_intensity(const unsigned char *data, int W, int H, float i, float j);
-	static QColor interpolated_image_color(const unsigned char *data, int W, int H, float i, float j);
+	static QColor interpolated_image_color_ABGR(const unsigned char *data, int W, int H, float i, float j);
+    static QColor interpolated_image_color_BGR(const unsigned char *data, int W, int H, float i, float j);
 
 private:
 };

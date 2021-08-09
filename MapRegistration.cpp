@@ -11,10 +11,32 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include "opencv2/imgproc/imgproc.hpp"
+
 #include "MaxHeap.h"
 #include "MapRegistration.h"
 
-QColor MapRegistration::interpolated_image_color(const unsigned char *data,int W,int H,float i,float j)
+static const int MIN_HAESSIAN    = 35000;
+static const int N_OCTAVES       = 8;
+static const int N_OCTAVE_LAYERS = 4;
+
+QColor MapRegistration::interpolated_image_color_BGR(const unsigned char *data,int W,int H,float i,float j)
+{
+    int I = (int)floor(i) ;
+    int J = (int)floor(j) ;
+
+    float di = i - I;
+    float dj = j - J;
+
+    int index = I+W*J ;
+
+    int r = (1-di)*((1-dj)*data[3*(index+0+0) + 2] + dj*data[3*(index+0+W) + 2]) + di*((1-dj)*data[3*(index+1+0) + 2] + dj*data[3*(index+1+W) + 2]);
+    int g = (1-di)*((1-dj)*data[3*(index+0+0) + 1] + dj*data[3*(index+0+W) + 1]) + di*((1-dj)*data[3*(index+1+0) + 1] + dj*data[3*(index+1+W) + 1]);
+    int b = (1-di)*((1-dj)*data[3*(index+0+0) + 0] + dj*data[3*(index+0+W) + 0]) + di*((1-dj)*data[3*(index+1+0) + 0] + dj*data[3*(index+1+W) + 0]);
+
+    return QColor(r,g,b);
+}
+QColor MapRegistration::interpolated_image_color_ABGR(const unsigned char *data,int W,int H,float i,float j)
 {
     int I = (int)floor(i) ;
     int J = (int)floor(j) ;
@@ -57,9 +79,9 @@ void  MapRegistration::findDescriptors(const std::string& image_filename,const Q
 		throw std::runtime_error("Cannot reading image " + image_filename);
 
 	//-- Step 1: Detect the keypoints using SURF Detector
-    int minHessian = 30000;
+    int minHessian = MIN_HAESSIAN;
 
-    cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
+    cv::xfeatures2d::SURF_Impl detector(minHessian,N_OCTAVES,N_OCTAVE_LAYERS,true,true);
 
     std::vector<cv::KeyPoint> keypoints;
 
@@ -81,6 +103,70 @@ void  MapRegistration::findDescriptors(const std::string& image_filename,const Q
     }
 }
 
+static bool bruteForceCheckMatchConsistency(const QImage& mask,const std::string& image_filename1,const std::string& image_filename2,double delta_x,double delta_y,bool verbose=false)
+{
+    cv::Mat tmp = cv::imread( image_filename1.c_str(), cv::IMREAD_COLOR);
+    if( !tmp.data ) throw std::runtime_error("Cannot reading image " + image_filename1);
+
+    cv::Mat img1;
+    cv::GaussianBlur( tmp, img1, cv::Size( 11, 11), 0, 0 );//applying Gaussian filter
+    //img1 = tmp;
+
+    tmp = cv::imread( image_filename2.c_str(), cv::IMREAD_COLOR);
+    if( !tmp.data ) throw std::runtime_error("Cannot reading image " + image_filename2);
+
+    cv::Mat img2;
+    cv::GaussianBlur( tmp, img2, cv::Size( 11, 11), 0, 0 );//applying Gaussian filter
+    //img2 = tmp;
+
+    int W1 = img1.size[1];
+    int H1 = img1.size[0];
+    int W2 = img2.size[1];
+    int H2 = img2.size[0];
+
+    if(verbose)
+        std::cerr << "Checking match between image " << image_filename1 << " (" << W1 << " x " << H1 <<
+                     ") and " << image_filename2 << " (" << W2 << " x " << H2 << ") dx=" << delta_x << ", dy=" << delta_y << std::endl;
+
+    int common_region_size=0;
+    int matching_pixels=0;
+
+    for(int i=0;i<W1;++i)
+        for(int j=0;j<H1;++j)
+        {
+            float x1 = i;
+            float y1 = j;
+
+            float x2 = i-delta_x;
+            float y2 = j-delta_y;
+
+            if(x2 >= 0.0 && x2 < W2 && y2 >= 0.0 && y2 < H2 && (  (mask.width() == 0 || mask.height() == 0) || (mask.pixel(x1,y1) != 0 && mask.pixel(x2,y2) != 0)) )
+            {
+                common_region_size++;
+
+                QColor c1 = MapRegistration::interpolated_image_color_BGR(img1.data,W1,H1,x1,y1);
+                QColor c2 = MapRegistration::interpolated_image_color_BGR(img2.data,W2,H2,x2,y2);
+
+                double dist = sqrt(pow(c1.redF() - c2.redF(),2) + pow(c1.greenF() - c2.greenF(),2) + pow(c1.blueF() - c2.blueF(),2));
+
+                if(verbose)
+                {
+                    std::cerr << "Comparing pixel (" << x1 << "," << y1 << ") color ( " << c1.redF() << "," << c1.greenF() << "," << c1.blueF() << ") of " << image_filename1 <<
+                                 " and pixel (" << x2 << "," << y2 << ") color ( " << c2.redF() << "," << c2.greenF() << "," << c2.blueF() << ") of " << image_filename2 ;
+                    std::cerr << " dist = " << dist << std::endl;
+                }
+                if(dist < 0.02)
+                    ++matching_pixels;
+            }
+        }
+
+    std::cerr << " common: " << common_region_size << " matching: "<< matching_pixels ;
+
+    if(common_region_size > 0.05*std::min(W1,H1)*std::min(W2,H2) && matching_pixels > 0.5*common_region_size)
+        return true;
+    else
+        return false;
+}
 
 static bool computeTransform(const QImage& mask,const std::vector<cv::KeyPoint>& keypoints1,const std::vector<cv::KeyPoint>& keypoints2,const cv::Mat& descriptors_1,const cv::Mat& descriptors_2,float& dx,float& dy,bool verbose=false)
 {
@@ -213,9 +299,9 @@ bool MapRegistration::computeRelativeTransform(const QImage& mask,const std::str
 	cv::Mat img2 = cv::imread( image_filename2.c_str(), cv::IMREAD_GRAYSCALE);
 	if( !img2.data ) throw std::runtime_error("Cannot reading image " + image_filename2);
 
-    int minHessian = 30000;
+    int minHessian = MIN_HAESSIAN;
 
-    cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
+    cv::xfeatures2d::SURF_Impl detector(minHessian,N_OCTAVES,N_OCTAVE_LAYERS,true,true);
 
     std::vector<cv::KeyPoint> keypoints1,keypoints2;
     cv::Mat descriptors_1,descriptors_2;
@@ -245,8 +331,8 @@ bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::ve
 
 		if( !img.data ) throw std::runtime_error("Cannot reading image " + image_filenames[i]);
 
-		int minHessian = 30000;
-		cv::xfeatures2d::SURF_Impl detector(minHessian,4,2,true,true);
+        int minHessian = MIN_HAESSIAN;
+        cv::xfeatures2d::SURF_Impl detector(minHessian,N_OCTAVES,N_OCTAVE_LAYERS,true,true);
 
 		detector.detectAndCompute( img, cv::Mat(), keypoints[i], descriptors[i] );
     }
@@ -314,27 +400,37 @@ bool MapRegistration::computeAllImagesPositions(const QImage& mask,const std::ve
 
             if(computeTransform(mask,keypoints[j],keypoints[i],descriptors[j],descriptors[i],delta_x,delta_y))
             {
-                std::cerr << " Image " << i << " is neighbour to image " << j << ": delta=" << delta_x << ", " << delta_y << std::endl;
+                std::cerr << " Image " << i << " is neighbour to image " << j << ": delta=" << delta_x << ", " << delta_y ;
+                std::cerr.flush();
+                std::cerr << ". Checking consistency..." ;
+                std::cerr.flush();
 
-                NStruct S;
-                S.j = j;
-                S.delta_x = delta_x;
-                S.delta_y = delta_y;
+                //	2 - test consistency of translations between images: for each image pair, translate the files and check how much pixels actually match
 
-                neighbours[i].push_back(S);
+                if(bruteForceCheckMatchConsistency(mask,image_filenames[i],image_filenames[j],delta_x,delta_y))
+                {
+                    std::cerr << " OK" << std::endl;
 
-                // This needs to be done both ways. Otherwise the graph is not bi-connected and some deadends may appear in the algorithm below.
+                    NStruct S;
+                    S.j = j;
+                    S.delta_x = delta_x;
+                    S.delta_y = delta_y;
 
-                S.j = i;
-                S.delta_x = -delta_x;
-                S.delta_y = -delta_y;
+                    neighbours[i].push_back(S);
 
-                neighbours[j].push_back(S);
+                    // This needs to be done both ways. Otherwise the graph is not bi-connected and some deadends may appear in the algorithm below.
+
+                    S.j = i;
+                    S.delta_x = -delta_x;
+                    S.delta_y = -delta_y;
+
+                    neighbours[j].push_back(S);
+                }
+                else
+                    std::cerr << " REJECTED" << std::endl;
             }
         }
     }
-
-    //	2 - test consistency of translations between images: for each image
 
     //	3 - test connexity, and compute connex components
 

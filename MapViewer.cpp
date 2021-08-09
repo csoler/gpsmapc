@@ -734,7 +734,9 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
                 displayText += "\n Lat: " + QString::number(g.lat) + " Lon: " + QString::number(g.lon);
 
 			QToolTip::showText(QPoint(20+e->globalX() - x(),20+e->globalY() - y()),displayText);
+#ifdef DEBUG
             std::cerr << displayText.toStdString() << std::endl;
+#endif
 		}
 
 		//QToolTip::showText(QCursor::pos() + QPoint(20,20),displayText);
