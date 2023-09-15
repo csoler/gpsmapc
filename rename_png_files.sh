@@ -25,9 +25,9 @@ do
 	padded=`seq -f "%03g" $currentnum $currentnum`
 	newname=file_"$padded".jpg
 
-	echo padded is '"'$padded'"'
-	echo file is '"'$file'"'
-	echo new name is '"'$newname'"'
+	# echo padded is '"'$padded'"'
+	# echo file is '"'$file'"'
+	# echo new name is '"'$newname'"'
 
 	if test "$1" = "-f" ; then
 		convert "$file" $newname
