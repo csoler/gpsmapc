@@ -23,13 +23,13 @@ protected:
 
 	void dropEvent(QDropEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
-	GLuint getTextureId(const QString& filename,const MapAccessor::ImageData& img_data) ;
+    GLuint getTextureId(MapDB::ImageHandle h,const MapAccessor::ImageData& img_data) ;
 	void screenCoordinatesToImageSpaceCoordinates(int i, int j, MapDB::ImageSpaceCoord &is) const;
 	void computeDescriptorsForCurrentImage();
 	void computeRelatedTransform();
 	void computeAllPositions();
 	void addReferencePoint(QMouseEvent *e);
-	bool screenPositionToSingleImagePixelPosition(int px, int py, float &img_x, float &img_y, QString& image_filename);
+    bool screenPositionToSingleImagePixelPosition(int px, int py, float &img_x, float &img_y, MapDB::ImageHandle& h);
 	void moveFromKeyboard(int key);
 
 	virtual void resizeEvent(QResizeEvent *) override;
@@ -59,8 +59,8 @@ protected:
     int  mLastX ;
     int  mLastY ;
     bool mMoving ;
-    QString mSelectedImage;
-    QString mLastSelectedImage ;
+    MapDB::ImageHandle mSelectedImage;
+    MapDB::ImageHandle mLastSelectedImage ;
 
     MapAccessor *mMA;
 	std::vector<MapAccessor::ImageData> mImagesToDraw;

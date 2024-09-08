@@ -100,7 +100,7 @@ void MapDB::loadDB(const QString& source_directory)
         createEmptyMap(f) ;
 
 		if (!f.open(QIODevice::ReadOnly ))
-            throw std::runtime_error("Cannot create local map file");
+            throw std::runtime_error("Cannot find local map file");
     }
 
     xmldoc.setContent(&f);
@@ -123,6 +123,8 @@ void MapDB::loadDB(const QString& source_directory)
 
     mImages.clear();
     QDomNode ep = root.firstChild();
+
+    QString refPointFile1,refPointFile2;
 
     while(!ep.isNull())
 	{
@@ -147,7 +149,9 @@ void MapDB::loadDB(const QString& source_directory)
 
             includeImage(image.bottom_left_corner,image.W,image.H) ;
 
-            mImages[filename] = image;
+            ImageHandle handle = mFilenames.size();
+            mFilenames.push_back(filename);
+            mImages[handle] = image;
 		}
 
         if(ep.toElement().tagName() == "ReferencePoint")
@@ -156,14 +160,38 @@ void MapDB::loadDB(const QString& source_directory)
             ep = ep.nextSibling();
 
             mReferencePoint2 = mReferencePoint1;
+            refPointFile2 = refPointFile1;
 
-            mReferencePoint1.filename = e.attribute("Filename",QString());
+            QString H = e.attribute("Handle",QString());
+
+            if(H.isNull())
+                refPointFile1 = e.attribute("Filename",QString());
+            else
+                mReferencePoint1.handle = H.toUInt();
+
             mReferencePoint1.x = e.attribute("ImageX","-1").toInt();
             mReferencePoint1.y = e.attribute("ImageY","-1").toInt();
             mReferencePoint1.lat = e.attribute("Latitude","0.0").toFloat();
             mReferencePoint1.lon = e.attribute("Longitude","0.0").toFloat();
         }
 	}
+    // fix ref points for backward compatibility
+
+    if(!refPointFile1.isNull())
+        for(uint32_t i=0;i<mFilenames.size();++i)
+            if(mFilenames[i] == refPointFile1)
+            {
+                mReferencePoint1.handle = i;
+                break;
+            }
+
+    if(!refPointFile2.isNull())
+        for(uint32_t i=0;i<mFilenames.size();++i)
+            if(mFilenames[i] == refPointFile2)
+            {
+                mReferencePoint2.handle = i;
+                break;
+            }
 
     // [...]
 }
@@ -176,6 +204,9 @@ void MapDB::checkDirectory(const QString& source_directory)
 
     std::cerr << "Now scanning source directory \"" << source_directory.toStdString() << "\"" << std::endl;
 
+    // make a quick search map for image names
+    QSet<QString> filenames(mFilenames.begin(),mFilenames.end());
+
     for(uint32_t i=0;i<dir.count();++i)
     {
         if(dir[i] == "mask.png")
@@ -187,9 +218,8 @@ void MapDB::checkDirectory(const QString& source_directory)
 		else if(dir[i].endsWith(".jpg"))
         {
             std::cerr << "  Checking image file " << dir[i].toStdString() ;
-            auto it = mImages.find(dir[i]);
 
-            if(mImages.end() == it)
+            if(!filenames.contains(dir[i]))
             {
                 std::cerr << "  not in the database. Adding!" << std::endl;
                 QImage img_data(source_directory + "/" + dir[i]) ;
@@ -199,13 +229,15 @@ void MapDB::checkDirectory(const QString& source_directory)
                 image.H = img_data.height();
                 image.bottom_left_corner = MapDB::ImageSpaceCoord(0.0,0.0);
 
-                mImages[dir[i]] = image;
+                uint32_t handle = mFilenames.size();
+                mFilenames.push_back(dir[i]);
+                mImages[handle] = image;
 
                 includeImage(image.bottom_left_corner,image.W,image.H);
                 mMapChanged = true;
             }
             else
-                std::cerr << "  already in the database. Coordinates: " << it->second.bottom_left_corner << std::endl;
+                std::cerr << "  already in the database." << std::endl;
         }
     }
 
@@ -219,7 +251,7 @@ static QDomElement convertRefPointToDom(QDomDocument& doc,const MapDB::Reference
 {
     QDomElement e = doc.createElement(QString("ReferencePoint"));
 
-    e.setAttribute("Filename",rp.filename);
+    e.setAttribute("Handle",QString::number(rp.handle));
     e.setAttribute("ImageX",QString::number(rp.x));
     e.setAttribute("ImageY",QString::number(rp.y));
     e.setAttribute("Latitude",QString::number(rp.lat));
@@ -228,6 +260,10 @@ static QDomElement convertRefPointToDom(QDomDocument& doc,const MapDB::Reference
 	return e;
 }
 
+QImage MapDB::getImageData(ImageHandle h) const
+{
+    return QImage(mRootDirectory + "/" + mFilenames[h]);
+}
 void MapDB::saveDB(const QString& directory)
 {
     QString filename(directory + "/" + MAP_DEFINITION_FILE_NAME);
@@ -244,14 +280,14 @@ void MapDB::saveDB(const QString& directory)
     e.setAttribute("latitude_min",mBottomLeft.y) ;
     e.setAttribute("latitude_max",mTopRight.y);
 
-    if(!mReferencePoint1.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint1));
-    if(!mReferencePoint2.filename.isNull()) e.appendChild(convertRefPointToDom(doc,mReferencePoint2));
+    if(mReferencePoint1.handle.isValid()) e.appendChild(convertRefPointToDom(doc,mReferencePoint1));
+    if(mReferencePoint2.handle.isValid()) e.appendChild(convertRefPointToDom(doc,mReferencePoint2));
 
     for(auto it(mImages.begin());it!=mImages.end();++it)
 	{
 		QDomElement ep = doc.createElement(QString("Image"));
 
-		ep.setAttribute("Filename",it->first);
+        ep.setAttribute("Filename",mFilenames[it->first]);
 		ep.setAttribute("Width",it->second.W);
 		ep.setAttribute("Height",it->second.H);
         ep.setAttribute("BottomLeftImageSpaceX",it->second.bottom_left_corner.x);
@@ -276,13 +312,13 @@ void MapDB::saveDB(const QString& directory)
     mMapChanged = false ;
 }
 
-void MapDB::moveImage(const QString& filename,float delta_is_x,float delta_is_y)
+void MapDB::moveImage(ImageHandle h,float delta_is_x,float delta_is_y)
 {
-    auto it = mImages.find(filename) ;
+    auto it = mImages.find(h) ;
 
     if(it == mImages.end())
     {
-        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << filename.toStdString() << std::endl;
+        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << mFilenames[h].toStdString() << std::endl;
         return;
     }
 
@@ -292,13 +328,13 @@ void MapDB::moveImage(const QString& filename,float delta_is_x,float delta_is_y)
     mMapChanged = true;
 }
 
-void MapDB::placeImage(const QString& image_filename, const ImageSpaceCoord &new_corner)
+void MapDB::placeImage(ImageHandle h, const ImageSpaceCoord &new_corner)
 {
-	auto it = mImages.find(image_filename) ;
+    auto it = mImages.find(h) ;
 
     if(it == mImages.end())
     {
-        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << image_filename.toStdString() << std::endl;
+        std::cerr << __PRETTY_FUNCTION__ << ": cannot find image " << mFilenames[h].toStdString() << std::endl;
         return;
     }
 
@@ -313,9 +349,9 @@ void MapDB::save()
     std::cerr << "Map saved!" << std::endl;
 }
 
-void MapDB::recomputeDescriptors(const QString& image_filename)
+void MapDB::recomputeDescriptors(ImageHandle h)
 {
-    auto it = mImages.find(image_filename);
+    auto it = mImages.find(h);
 
     if(mImages.end() == it)
         return ;
@@ -327,15 +363,14 @@ void MapDB::recomputeDescriptors(const QString& image_filename)
     //    return;
     //}
 
-    std::cerr << "Computing descriptors for image " << image_filename.toStdString() << "..." << std::endl;
+    std::cerr << "Computing descriptors..." << std::endl;
 
-    //MapRegistration::findDescriptors(image.bits(),it->second.W,it->second.H,it->second.descriptors);
-    MapRegistration::findDescriptors( (mRootDirectory+"/"+image_filename).toStdString(),QImage(mRootDirectory+"/mask.png"),it->second.descriptors);
+    MapRegistration::findDescriptors( (mRootDirectory+"/"+mFilenames[h]).toStdString(),QImage(mRootDirectory+"/mask.png"),it->second.descriptors);
 }
 
-bool MapDB::getImageParams(const QString& image_filename,MapDB::RegisteredImage& img) const
+bool MapDB::getImageParams(ImageHandle h,MapDB::RegisteredImage& img) const
 {
-	auto it = mImages.find(image_filename);
+    auto it = mImages.find(h);
 
     if(mImages.end() == it)
         return false;
@@ -344,11 +379,11 @@ bool MapDB::getImageParams(const QString& image_filename,MapDB::RegisteredImage&
     return true;
 }
 
-void MapDB::setReferencePoint(const QString& image_name,int point_x,int point_y)
+void MapDB::setReferencePoint(ImageHandle h,int point_x,int point_y)
 {
     mReferencePoint2 = mReferencePoint1;
 
-    mReferencePoint1.filename = image_name ;
+    mReferencePoint1.handle = h;
     mReferencePoint1.x = point_x ;
     mReferencePoint1.y = point_y ;
     mReferencePoint1.lat = 0 ;
@@ -357,10 +392,10 @@ void MapDB::setReferencePoint(const QString& image_name,int point_x,int point_y)
 
 int MapDB::numberOfReferencePoints() const
 {
-    if(mReferencePoint1.filename.isNull())
+    if(!mReferencePoint1.handle.isValid())
         return 0;
 
-    if(mReferencePoint2.filename.isNull())
+    if(!mReferencePoint2.handle.isValid())
         return 1;
 
     return 2;
@@ -368,11 +403,11 @@ int MapDB::numberOfReferencePoints() const
 
 bool MapDB::imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const
 {
-    if(mReferencePoint1.filename.isNull() || mReferencePoint2.filename.isNull())
+    if(mReferencePoint1.handle >= mFilenames.size() || mReferencePoint2.handle >= mFilenames.size())
         return false;
 
-    auto it1 = mImages.find(mReferencePoint1.filename) ;
-    auto it2 = mImages.find(mReferencePoint2.filename) ;
+    auto it1 = mImages.find(mReferencePoint1.handle) ;
+    auto it2 = mImages.find(mReferencePoint2.handle) ;
 
     if(it1 == mImages.end() || it2 == mImages.end())
         return false;
@@ -393,7 +428,10 @@ bool MapDB::imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& 
     return true;
 }
 
-
+QString MapDB::getImagePath(ImageHandle h) const
+{
+    return mRootDirectory + "/" + mFilenames[h] ;
+}
 
 
 

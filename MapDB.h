@@ -12,9 +12,23 @@ class QString ;
 class MapDB
 {
 	public:
-		MapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from xml file.
+        MapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from a xml file.
 
-		struct GPSCoord
+        class ImageHandle
+        {
+        public:
+            ImageHandle() : _n(UINT_MAX) {}
+            ImageHandle(uint32_t n) : _n(n) {}
+
+            operator uint32_t() const { return _n; }
+            uint32_t& operator()() { return _n; }
+
+            bool isValid() const { return _n!=UINT_MAX; }
+        private:
+            uint32_t _n;
+        };
+
+        struct GPSCoord
 		{
             GPSCoord(float _lon,float _lat) : lon(_lon),lat(_lat) {}
             GPSCoord() : lon(0.0f),lat(0.0f) {}
@@ -34,11 +48,11 @@ class MapDB
 
         struct ReferencePoint
         {
-            ReferencePoint() : x(-1),y(-1),lat(0.0),lon(0.0) {}
+            ReferencePoint() : x(-1),y(-1),lat(0.0),lon(0.0),handle(UINT_MAX) {}
 
             int x,y;
             float lat,lon;
-            QString filename;
+            ImageHandle handle;
         };
 
 		struct RegisteredImage
@@ -51,8 +65,8 @@ class MapDB
 
         // For debugging and initialization purposes
 
-        const std::map<QString,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
-    	bool getImageParams(const QString& image_filename,MapDB::RegisteredImage& img) const;
+        const std::map<ImageHandle,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
+        bool getImageParams(ImageHandle h, MapDB::RegisteredImage& img) const;
 
         // accessor methods
 
@@ -62,11 +76,11 @@ class MapDB
         const ImageSpaceCoord& bottomLeftCorner() const { return mBottomLeft ; }
         const ImageSpaceCoord& topRightCorner() const { return mTopRight ; }
 
-		void moveImage(const QString& mSelectedImage, float delta_is_x, float delta_is_y);
-    	void placeImage(const QString& image_filename,const ImageSpaceCoord& new_corner);
-		void setReferencePoint(const QString& image_name,int point_x,int point_y);
+        void moveImage(ImageHandle h, float delta_is_x, float delta_is_y);
+        void placeImage(ImageHandle h,const ImageSpaceCoord& new_corner);
+        void setReferencePoint(ImageHandle h,int point_x,int point_y);
 
-		void recomputeDescriptors(const QString& image_filename);
+        void recomputeDescriptors(ImageHandle h);
 
         void save();
 
@@ -75,6 +89,8 @@ class MapDB
 
         bool imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const ;
 
+        QImage getImageData(ImageHandle h) const ;
+        QString getImagePath(ImageHandle h) const;
 	private:
 		bool init();
 		void loadDB(const QString& source_directory);
@@ -90,7 +106,8 @@ class MapDB
 
         // actual map data
 
-		std::map<QString,MapDB::RegisteredImage> mImages ;
+        std::map<ImageHandle,MapDB::RegisteredImage> mImages ;
+        std::vector<QString> mFilenames;
 
         QString mImagesMask ;
 
@@ -102,6 +119,24 @@ class MapDB
 
         QString mName ;
         time_t  mCreationTime;
+
+};
+
+// Manages a collection of maps represented by a collection of separate unregistered files
+
+class ScreenshotCollectionMapDB: public MapDB
+{
+public:
+        ScreenshotCollectionMapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from a xml file.
+
+};
+
+// Manages a collection of maps represented by a single QCT file
+
+class QctMapDB: public MapDB
+{
+public:
+        QctMapDB(const QString& qct_filename) ; // initializes the map. Loads the registered images entries from xml file.
 
 };
 

@@ -7,6 +7,7 @@
 #include <QMessageBox>
 #include <QCoreApplication>
 #include <QProgressBar>
+#include <QDragEnterEvent>
 
 #include "MapAccessor.h"
 #include "MapViewer.h"
@@ -192,6 +193,11 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
     case Qt::Key_X: exportMap();
         break;
 
+    case Qt::Key_L: mExplicitDraw = !mExplicitDraw;
+                    displayMessage("(DEBUG) Toggling explicit draw");
+                    updateGL();
+        break;
+
     case Qt::Key_G: mShowExportGrid = !mShowExportGrid;
 					updateGL();
         break;
@@ -202,25 +208,31 @@ void MapViewer::keyPressEvent(QKeyEvent *e)
         break;
 
 	case Qt::Key_P: displayMessage("computing all positions...");
+                    setCursor(Qt::WaitCursor);
+                    QApplication::processEvents();
                     computeAllPositions();
                     updateGL();
+                    setCursor(Qt::ArrowCursor);
         break;
 
-	case Qt::Key_D: displayMessage("computing descriptors...");
+    case Qt::Key_D: displayMessage("(DEBUG) computing descriptors...");
                     computeDescriptorsForCurrentImage();
                     updateGL();
         break;
 
 	case Qt::Key_T: displayMessage("computing transform...");
+                    setCursor(Qt::WaitCursor);
                     computeRelatedTransform();
                     updateGL();
-		break;
+                    setCursor(Qt::ArrowCursor);
+        break;
 
 	case Qt::Key_E: mDisplayDescriptor = (mDisplayDescriptor+1)%4;
+                    displayMessage("(DEBUG) Toggled show images descriptors");
                     updateGL();
         break;
 
-	case Qt::Key_S: if(!mSelectedImage.isNull())
+    case Qt::Key_S: if(mSelectedImage.isValid())
             			mLastSelectedImage = mSelectedImage;
                     updateGL();
         break;
@@ -257,6 +269,7 @@ void MapViewer::displayHelp()
     text += "  Debug purpose:<br>";
     text += "    D: compute/show descriptors for current image<br/>";
     text += "    E: display/hide image descriptors<br/>";
+    text += "    L: switch to explicit draw mode<br/>";
 
     QMessageBox::information(NULL,"Keys",text);
 }
@@ -309,7 +322,7 @@ void MapViewer::exportMap()
  	if(!MapExporter(*mMA).exportMap(bottom_left_corner,top_right_corner, dir_name,progress_callback,&prog))
         return;
 
-    system(QString("cd %1;zip -r %1.kmz *").arg(dir_name).toStdString().c_str());
+    (void)!system(QString("cd %1;zip -r %1.kmz *").arg(dir_name).toStdString().c_str());
 
     QApplication::setOverrideCursor(Qt::ArrowCursor);
     QMessageBox::information(NULL,"Export finished","<p>Your map is exported in Garmin kmz format in file " +dir_name +"kmz.<br/>You can now export it to your Garmin device.</p>");
@@ -386,7 +399,7 @@ void MapViewer::draw()
 
 		glDisable(GL_LIGHTING);
 
-		GLuint tex_id = getTextureId(mImagesToDraw[i].filename,mImagesToDraw[i]) ;
+        GLuint tex_id = getTextureId(mImagesToDraw[i].handle,mImagesToDraw[i]) ;
 
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D,tex_id);
@@ -416,12 +429,12 @@ void MapViewer::draw()
 
 		CHECK_GL_ERROR();
 
-		if(mImagesToDraw[i].filename == mSelectedImage)
+        if(mImagesToDraw[i].handle == mSelectedImage)
 		{
 			glLineWidth(5.0);
 			glColor3f(1.0,0.7,0.2) ;
 		}
-		else if(mImagesToDraw[i].filename == mLastSelectedImage)
+        else if(mImagesToDraw[i].handle == mLastSelectedImage)
 		{
 			glLineWidth(5.0);
 			glColor3f(0.7,0.9,0.3) ;
@@ -496,7 +509,7 @@ void MapViewer::draw()
 		const MapDB::ReferencePoint& p = mMA->mapDB().getReferencePoint(i);
 		MapDB::RegisteredImage img;
 
-		mMA->getImageParams(p.filename,img);
+        mMA->getImageParams(p.handle,img);
 
 		float radius = 100;
 		int nb_pts = 50;
@@ -552,18 +565,18 @@ void MapViewer::draw()
 	CHECK_GL_ERROR();
 }
 
-GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor::ImageData& img_data)
+GLuint MapViewer::getTextureId(MapDB::ImageHandle h, const MapAccessor::ImageData& img_data)
 {
-	static std::map<QString,GLuint> ids ;
+    static std::map<MapDB::ImageHandle,GLuint> ids ;
 
-	auto it = ids.find(texture_filename) ;
+    auto it = ids.find(h) ;
 
 	if(it == ids.end())
 	{
 		GLuint tex_id = 0;
 		glGenTextures(1,&tex_id);
 
-        ids[texture_filename] = tex_id ;
+        ids[h] = tex_id ;
 
 		glBindTexture(GL_TEXTURE_2D,tex_id);
 		glPixelStorei(GL_UNPACK_ALIGNMENT,4);
@@ -582,7 +595,7 @@ GLuint MapViewer::getTextureId(const QString& texture_filename,const MapAccessor
 
 		CHECK_GL_ERROR();
 
-        std::cerr << "Allocating new texture ID " << tex_id << " for texture " << texture_filename.toStdString() << std::endl;
+        std::cerr << "Allocating new texture ID " << tex_id << " for texture " << h << std::endl;
 
         return tex_id;
 	}
@@ -617,12 +630,12 @@ void MapViewer::mouseReleaseEvent(QMouseEvent *e)
 
 // This code cannot use the similar function in MapDB because eventualy it will request less images so the search will be faster than searching in the whole DB.
 
-bool MapViewer::screenPositionToSingleImagePixelPosition(int px,int py,float& img_x,float& img_y,QString& image_filename)
+bool MapViewer::screenPositionToSingleImagePixelPosition(int px, int py, float& img_x, float& img_y, MapDB::ImageHandle &h)
 {
 	MapDB::ImageSpaceCoord is;
 	screenCoordinatesToImageSpaceCoordinates(px,py,is);
 
-    return mMA->findImagePixel(is,mImagesToDraw,img_x,img_y,image_filename) ;
+    return mMA->findImagePixel(is,mImagesToDraw,img_x,img_y,h) ;
 }
 
 void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,MapDB::ImageSpaceCoord& is) const
@@ -637,14 +650,14 @@ void MapViewer::screenCoordinatesToImageSpaceCoordinates(int i,int j,MapDB::Imag
 void MapViewer::addReferencePoint(QMouseEvent *e)
 {
     float x,y;
-    QString selection;
+    MapDB::ImageHandle selection;
 
     if(!screenPositionToSingleImagePixelPosition(e->x(),e->y(),x,y,selection))
         return ;
 
-    if(!selection.isNull())
+    if(selection.isValid())
     {
-        std::cerr << "Setting new reference point in image " << selection.toStdString() << " at point " << x << " " << y << std::endl;
+        std::cerr << "Setting new reference point in image " << selection << " at point " << x << " " << y << std::endl;
         mMA->setReferencePoint(selection,x,y) ;
         updateGL();
     }
@@ -672,7 +685,7 @@ void MapViewer::mousePressEvent(QMouseEvent *e)
 	QGLViewer::mousePressEvent(e) ;
 }
 
-void MapViewer::moveFromKeyboard(int key)
+void MapViewer::moveFromKeyboard(int /*key*/)
 {
  	std::cerr << __PRETTY_FUNCTION__ << ": not implemented." << std::endl;
 }
@@ -710,7 +723,7 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
     }
     else // enter image selection mode
     {
-        QString new_selection ;
+        MapDB::ImageHandle new_selection ;
         float new_x,new_y;
 
         if(screenPositionToSingleImagePixelPosition(e->x(),e->y(),new_x,new_y,new_selection))
@@ -720,7 +733,7 @@ void MapViewer::mouseMoveEvent(QMouseEvent *e)
 
 			QString displayText ;
 			displayText += QString::number(e->x()) + "," +QString::number(e->y());
-			displayText += "  I: " + new_selection + " at " + QString::number(new_x) + "," + QString::number(new_y);
+            displayText += "  I: " + QString::number(new_selection) + " at " + QString::number(new_x) + "," + QString::number(new_y);
 
             MapDB::ImageSpaceCoord global ;
 
@@ -797,7 +810,7 @@ void MapViewer::computeSlice()
 
 void MapViewer::computeRelatedTransform()
 {
-    if(mLastSelectedImage.isNull() || mSelectedImage.isNull())
+    if(!mLastSelectedImage.isValid() || !mSelectedImage.isValid())
     {
         std::cerr << "Error: you need to compute descriptors for 2 images." << std::endl;
         return ;
@@ -836,7 +849,7 @@ void MapViewer::computeAllPositions()
     for(auto it(images_map.begin());it!=images_map.end();++it)
     	images_full_paths.push_back(mMA->fullPath(it->first).toStdString());
 
-	if(! MapRegistration::computeAllImagesPositions(mMA->imageMask(),images_full_paths,coords))
+    if(! MapRegistration::computeAllImagesPositions(mMA->imageMask(),images_full_paths,coords))
     {
         std::cerr << "No global transform found!" << std::endl;
         return;
@@ -853,7 +866,7 @@ void MapViewer::computeAllPositions()
 
 void MapViewer::computeDescriptorsForCurrentImage()
 {
-    if(! mSelectedImage.isNull())
+    if(mSelectedImage.isValid())
         mMA->recomputeDescriptors(mSelectedImage);
 }
 
