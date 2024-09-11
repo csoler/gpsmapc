@@ -12,8 +12,6 @@ class QString ;
 class MapDB
 {
 	public:
-        MapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from a xml file.
-
         class ImageHandle
         {
         public:
@@ -65,78 +63,32 @@ class MapDB
 
         // For debugging and initialization purposes
 
-        const std::map<ImageHandle,MapDB::RegisteredImage>& getFullListOfImages() const { return mImages ; }
-        bool getImageParams(ImageHandle h, MapDB::RegisteredImage& img) const;
+        virtual const std::map<ImageHandle,MapDB::RegisteredImage>& getFullListOfImages() const =0;
+        virtual bool getImageParams(ImageHandle h, MapDB::RegisteredImage& img) const = 0;
+        virtual QImage getImageData(ImageHandle h) const =0;
+        virtual bool imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const=0;
+        virtual const ReferencePoint& getReferencePoint(int i) const =0;
+        virtual int numberOfReferencePoints() const =0;
 
         // accessor methods
-
-        const QString& rootDirectory() const { return mRootDirectory; }
-        const QString& imagesMaskFilename() const { return mImagesMask; }
 
         const ImageSpaceCoord& bottomLeftCorner() const { return mBottomLeft ; }
         const ImageSpaceCoord& topRightCorner() const { return mTopRight ; }
 
-        void moveImage(ImageHandle h, float delta_is_x, float delta_is_y);
-        void placeImage(ImageHandle h,const ImageSpaceCoord& new_corner);
-        void setReferencePoint(ImageHandle h,int point_x,int point_y);
+    protected:
+        MapDB(const QString& name) : mName(name) {}
 
-        void recomputeDescriptors(ImageHandle h);
-
-        void save();
-
-        const ReferencePoint& getReferencePoint(int i) const { return i==0?mReferencePoint1:mReferencePoint2; }
-        int numberOfReferencePoints() const ;
-
-        bool imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const ;
-
-        QImage getImageData(ImageHandle h) const ;
-        QString getImagePath(ImageHandle h) const;
-	private:
-		bool init();
-		void loadDB(const QString& source_directory);
-		void saveDB(const QString& source_directory);
-		void createEmptyMap(QFile& map_file);
-        void checkDirectory(const QString& source_directory) ;
-		void includeImage(const MapDB::ImageSpaceCoord& top_left_corner,int W,int H);
-
-		QString mRootDirectory ;
+        void includeImage(const MapDB::ImageSpaceCoord& top_left_corner,int W,int H);
 
         bool mMapInited ;
-        bool mMapChanged;
 
         // actual map data
-
-        std::map<ImageHandle,MapDB::RegisteredImage> mImages ;
-        std::vector<QString> mFilenames;
-
-        QString mImagesMask ;
 
         ImageSpaceCoord mBottomLeft ;
         ImageSpaceCoord mTopRight ;
 
-        ReferencePoint mReferencePoint1;
-        ReferencePoint mReferencePoint2;
-
         QString mName ;
         time_t  mCreationTime;
-
-};
-
-// Manages a collection of maps represented by a collection of separate unregistered files
-
-class ScreenshotCollectionMapDB: public MapDB
-{
-public:
-        ScreenshotCollectionMapDB(const QString& directory_name) ; // initializes the map. Loads the registered images entries from a xml file.
-
-};
-
-// Manages a collection of maps represented by a single QCT file
-
-class QctMapDB: public MapDB
-{
-public:
-        QctMapDB(const QString& qct_filename) ; // initializes the map. Loads the registered images entries from xml file.
 
 };
 

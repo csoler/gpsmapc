@@ -6,12 +6,27 @@ PKGCONFIG += opencv4
 QMAKE_CXXFLAGS *= -fopenmp
 LIBS *= -lgomp
 
-SOURCES = IGNMapper.cpp MapDB.cpp MapAccessor.cpp MapGUIWindow.cpp MapViewer.cpp \
-    MapExporter.cpp \
-    MapRegistration.cpp
-HEADERS = MapDB.h MapAccessor.h MapGUIWindow.h MapViewer.h config.h \
-    MapExporter.h \
-    MapRegistration.h
+SOURCES = IGNMapper.cpp \
+        ScreenshotCollectionMapDB.cpp \
+        MapDB.cpp \
+        MapAccessor.cpp \
+        MapGUIWindow.cpp \
+        MapViewer.cpp \
+        QctFile.cpp \
+        MapExporter.cpp \
+        MapRegistration.cpp \
+        QctMapDB.cpp
+
+HEADERS = MapDB.h \
+        MapAccessor.h \
+        MapGUIWindow.h \
+        ScreenshotCollectionMapDB.h \
+        MapViewer.h \
+        config.h \
+        QctFile.h \
+        MapExporter.h \
+        MapRegistration.h \
+        QctMapDB.h
 
 INCLUDEPATH += /usr/include/opencv4
 

@@ -3,11 +3,16 @@
 #include <QImage>
 
 #include "MapAccessor.h"
+#include "ScreenshotCollectionMapDB.h"
+
+#define CHECK_MMA auto mDb2 = dynamic_cast<ScreenshotCollectionMapDB*>(&mDb); if(!mDb2) return
 
 MapAccessor::MapAccessor(MapDB& m) : mDb(m)
 {
-    if(!mDb.imagesMaskFilename().isNull())
-        mImageMask = QImage(mDb.rootDirectory() + "/" + mDb.imagesMaskFilename());//.createAlphaMask(Qt::AutoColor);
+    CHECK_MMA;
+
+    if(!mDb2->imagesMaskFilename().isNull())
+        mImageMask = QImage(mDb2->rootDirectory() + "/" + mDb2->imagesMaskFilename());//.createAlphaMask(Qt::AutoColor);
 }
 
 
@@ -160,32 +165,39 @@ const unsigned char *MapAccessor::getPixelDataForTextureUsage(MapDB::ImageHandle
 
 void MapAccessor::moveImage(MapDB::ImageHandle h,float delta_lon,float delta_lat)
 {
-    mDb.moveImage(h,delta_lon,delta_lat);
+    CHECK_MMA;
+
+    mDb2->moveImage(h,delta_lon,delta_lat);
 }
 
 void MapAccessor::recomputeDescriptors(MapDB::ImageHandle h)
 {
-    mDb.recomputeDescriptors(h);
+    CHECK_MMA;
+    mDb2->recomputeDescriptors(h);
 }
 
 void MapAccessor::saveMap()
 {
-	mDb.save();
+    CHECK_MMA;
+    mDb2->save();
 }
 
 QString MapAccessor::fullPath(MapDB::ImageHandle h)
 {
-    return mDb.getImagePath(h);
+    CHECK_MMA QString();
+    return mDb2->getImagePath(h);
 }
 
 void MapAccessor::placeImage(MapDB::ImageHandle h,const MapDB::ImageSpaceCoord& new_corner)
 {
-    return mDb.placeImage(h,new_corner);
+    CHECK_MMA;
+    return mDb2->placeImage(h,new_corner);
 }
 
 void MapAccessor::setReferencePoint(MapDB::ImageHandle h,int point_x,int point_y)
 {
-    mDb.setReferencePoint(h,point_x,point_y);
+    CHECK_MMA;
+    mDb2->setReferencePoint(h,point_x,point_y);
 }
 
 
