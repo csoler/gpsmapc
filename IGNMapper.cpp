@@ -32,13 +32,15 @@ int main(int argc,char *argv[])
         QctMapDB mapdb(QString::fromStdString(qct_file)) ;
         MapAccessor ma(mapdb) ;
         map_gui_win.setMapAccessor(ma);
+
+        return IGNMapperApp.exec();
     }
     else
     {
         ScreenshotCollectionMapDB mapdb(MAP_ROOT_DIRECTORY) ;
         MapAccessor ma(mapdb) ;
         map_gui_win.setMapAccessor(ma);
-    }
 
-	return IGNMapperApp.exec();
+        return IGNMapperApp.exec();
+    }
 }
