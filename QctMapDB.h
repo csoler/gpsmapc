@@ -23,5 +23,5 @@ private:
         ImageHandle coordinatesToHandle(int x,int y) const;
         std::map<MapDB::ImageHandle,MapDB::RegisteredImage> mImages;
 
-        QctFile mQctFile;
+        mutable QctFile mQctFile;
 };

@@ -58,9 +58,10 @@ bool QctMapDB::getImageParams(ImageHandle h, MapDB::RegisteredImage& img) const
 }
 QImage QctMapDB::getImageData(ImageHandle h) const
 {
-    QImage image(QctFile::QCT_TILE_SIZE,QctFile::QCT_TILE_SIZE,QImage::Format_ARGB32);
+    int x,y;
 
-
+    auto p = handleToCoordinates(h);
+    return mQctFile.getTileImage(p.first,p.second);
 }
 bool QctMapDB::imageSpaceCoordinatesToGPSCoordinates(const MapDB::ImageSpaceCoord& ic,MapDB::GPSCoord& g) const
 {
@@ -74,7 +75,7 @@ const MapDB::ReferencePoint& QctMapDB::getReferencePoint(int i) const
     NOT_IMPLEMENTED;
     return ReferencePoint();
 }
-int QctMapDB::numberOfReferencePoints() const { return 2 ; }
+int QctMapDB::numberOfReferencePoints() const { return 0 ; }
 
 std::pair<int,int> QctMapDB::handleToCoordinates(ImageHandle h) const
 {
