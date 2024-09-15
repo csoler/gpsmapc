@@ -19,6 +19,9 @@ public:
         virtual int numberOfReferencePoints() const override;
 
 private:
+        std::pair<int,int> handleToCoordinates(ImageHandle h) const;
+        ImageHandle coordinatesToHandle(int x,int y) const;
+        std::map<MapDB::ImageHandle,MapDB::RegisteredImage> mImages;
 
         QctFile mQctFile;
 };

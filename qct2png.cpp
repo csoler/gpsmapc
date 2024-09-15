@@ -812,12 +812,12 @@ QCT::readFile(FILE *fp, int headeronly,unsigned char *data)
 		fgetc(fp);
 	}
 
-	// Don't read and unpack image data if not required
+		if(size_x == 0) size_x = width ;
+	if(size_y == 0) size_y = height ;
+
+// Don't read and unpack image data if not required
 	if (headeronly)
 		return true;
-
-	if(size_x == 0) size_x = width ;
-	if(size_y == 0) size_y = height ;
 
 
 	{
@@ -1173,7 +1173,7 @@ static bool writePNGFile(FILE *fp, const unsigned char *data, const int *palette
 
 	return true;
 #else
-	throwError("cannot write file (PNG not supported)");
+	//throwError("cannot write file (PNG not supported)");
 	return false;
 #endif
 }
@@ -1341,14 +1341,20 @@ main(int argc, char *argv[])
 	// Image index (width * height pointers)
     // Allocate image data once for all
 
-	unsigned char *image_data = (unsigned char*)calloc(size_tile_y*QCT_TILE_SIZE, size_tile_x*QCT_TILE_SIZE);
 
 	if (query)
 	{
 		qct.printMetadata(stdout);
+		return 1;
 	}
-	else if (outputfile)
-		writePNGFilename(outputfile,image_data,qct.getPalette(),size_tile_x*QCT_TILE_SIZE,size_tile_y*QCT_TILE_SIZE);
+
+	unsigned char *image_data = (unsigned char*)calloc(size_tile_y*QCT_TILE_SIZE, size_tile_x*QCT_TILE_SIZE);
+
+	std::cerr << "Image size: " << size_tile_y*QCT_TILE_SIZE << " x " <<  size_tile_x*QCT_TILE_SIZE << std::endl;
+	if(!qct.readFilename(inputfile,query,image_data))
+		return 0;
+
+	writePNGFilename(outputfile,image_data,qct.getPalette(),size_tile_x*QCT_TILE_SIZE,size_tile_y*QCT_TILE_SIZE);
 
 	if (outputKMZfile)
     {
